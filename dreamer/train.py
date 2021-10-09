@@ -12,7 +12,8 @@ from utils.random import init_random_seeds
 from Dreamer import Dreamer
 from ReplayBuffer import Episode, ReplayBuffer
 
-
+# TODO
+# put all hyperparameters in some sort of config
 RANDOM_SEED = 239
 INIT_STEPS = 2500
 MEMORY_SIZE = 10**4
@@ -46,13 +47,13 @@ def train(env, agent):
 
         if memory.num_steps() >= INIT_STEPS:
             batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
-            agent.train(batch_seq)
+            agent.optimize(batch_seq)
 
 if __name__ == "__main__":
     init_logger("logdir", "tmplol")
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
 
     env = DMControlWrapper(RANDOM_SEED)
-    agent = Dreamer(env.action_size)
+    agent = Dreamer(env.state_dim, env.action_dim)
     train(env, agent)
 

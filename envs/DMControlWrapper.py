@@ -9,8 +9,9 @@ class DMControlWrapper():
             task_kwargs={"random": random_seed},
         )
         print(self.env.action_spec()) # TODO all kind of assertions
-        self.action_size = self.env.action_spec().shape[0]
+        self.action_dim = self.env.action_spec().shape[0]
         #TODO learn from pixels
+        self.state_dim = sum(map(lambda v: v.shape[0], self.env.observation_spec().values()))
         self.from_pixels = False
 
     def reset(self):

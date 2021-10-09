@@ -1,17 +1,25 @@
 import numpy as np
 import torch
 
+from WorldModel import WorldModel
+from ActorCritic import ActorCritic
 
 class Dreamer():
-    def __init__(self, action_size):
-        self.action_size = action_size
+    def __init__(self, state_dim, action_dim):
+        # yet without images
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+
+        self.world_model = WorldModel(state_dim, action_dim)
+        self.agent = ActorCritic(state_dim, action_dim)
 
     def __call__(self, state):
-        return self.act(state)
+        return self.agent.act(state)
 
-    def act(self, state):
-        return np.random.uniform(-1, 1, size=self.action_size)
+    def optimize(self, batch_seq):
+        state, next_state, action, reward, done = batch_seq
+        self.world_model.optimize(state, next_state, action, reward, done)
+        self.agent.optimize(self.world_model, state)
 
-    def train(self, batch_seq):
-        pass
-        
+
+
