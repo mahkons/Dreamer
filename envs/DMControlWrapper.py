@@ -2,8 +2,12 @@ import numpy as np
 from dm_control import suite
 
 class DMControlWrapper():
-    def __init__(self):
-        self.env = suite.load(domain_name="cartpole", task_name="balance")
+    def __init__(self, random_seed):
+        self.env = suite.load(
+            domain_name="cartpole",
+            task_name="balance",
+            task_kwargs={"random": random_seed},
+        )
         print(self.env.action_spec()) # TODO all kind of assertions
         self.action_size = self.env.action_spec().shape[0]
         #TODO learn from pixels

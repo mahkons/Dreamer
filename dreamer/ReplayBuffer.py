@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import random
 from collections import namedtuple, deque
 
@@ -26,8 +27,8 @@ class Episode():
         assert(self.done)
         pos = np.random.choice(len(self))
         done = torch.zeros(seq_len, dtype=torch.float)
-        if pos >= len(self) - seq_len + 1:
-            pos = len(self) - seq_len + 1
+        if pos >= len(self) - seq_len:
+            pos = len(self) - seq_len
             done[-1] = 1
 
         return self.states[pos : pos + seq_len], \
@@ -69,12 +70,17 @@ class ReplayBuffer():
         episodes = [self.step_to_episode[step] for step in np.random.choice(len(self.step_to_episode), size=batch_size)]
         trajectories = [episode.sample(seq_len) for episode in episodes]        
         state, next_state, action, reward, done = zip(*trajectories)
-        return torch.as_tensor(state, device=device), \
-            torch.as_tensor(next_state, device=device), \
-            torch.as_tensor(action, device=device), \
-            torch.as_tensor(reward, device=device), \
-            torch.as_tensor(done, device=device)
+        return torch.stack(state).to(device), \
+            torch.stack(next_state).to(device), \
+            torch.stack(action).to(device), \
+            torch.stack(reward).to(device), \
+            torch.stack(done).to(device)
 
+    def num_episodes(self):
+        return len(self.memory)
+
+    def num_steps(self):
+        return len(self.step_to_episode)
 
     def clear(self):
         self.memory.clear()

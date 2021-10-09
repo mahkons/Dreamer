@@ -19,7 +19,6 @@ def log():
 class Logger():
     def __init__(self, logdir, logname):
         self.logdir = logdir
-        self.use_wandb = use_wandb
 
         if logname.startswith("tmp") and os.path.exists(os.path.join(logdir, logname)):
             shutil.rmtree(os.path.join(logdir, logname))
@@ -42,8 +41,6 @@ class Logger():
         self.params.update(params.to_dict())
         params_path = os.path.join(self.dir, "params.csv")
         pd.DataFrame(self.params.items(), columns=("name", "value")).to_csv(params_path, index=False)
-        if self.use_wandb:
-            wandb.config.update(self.params)
 
     def add_plot(self, name, columns):
         assert name not in self.plots

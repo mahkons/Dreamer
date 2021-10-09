@@ -11,4 +11,7 @@ class Dreamer():
 
     def act(self, state):
         return np.random.uniform(-1, 1, size=self.action_size)
+
+    def train(self, batch_seq):
+        pass
         
