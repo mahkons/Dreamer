@@ -1,2 +1,2 @@
-from .ActorNetwork import ActorNetwork
-from .CriticNetwork import CriticNetwork
+from .ActorCriticNetworks import ActorNetwork, CriticNetwork
+from .WorldModelNetworks import RewardNetwork, DiscountNetwork

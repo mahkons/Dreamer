@@ -15,9 +15,9 @@ from ReplayBuffer import Episode, ReplayBuffer
 # TODO
 # put all hyperparameters in some sort of config
 RANDOM_SEED = 239
-INIT_STEPS = 2500
-MEMORY_SIZE = 10**4
-TOTAL_STEPS = 10**4
+INIT_STEPS = 10**4
+MEMORY_SIZE = 10**6
+TOTAL_STEPS = 10**6
 SEQ_LEN = 50
 BATCH_SIZE = 50
 device = torch.device("cpu")

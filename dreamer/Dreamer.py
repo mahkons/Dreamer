@@ -14,12 +14,13 @@ class Dreamer():
         self.agent = ActorCritic(state_dim, action_dim)
 
     def __call__(self, state):
-        return self.agent.act(state)
+        with torch.no_grad():
+            return self.agent.act(torch.as_tensor(state, dtype=torch.float))
 
     def optimize(self, batch_seq):
         state, next_state, action, reward, done = batch_seq
         self.world_model.optimize(state, next_state, action, reward, done)
-        self.agent.optimize(self.world_model, state)
+        self.agent.optimize(self.world_model, state.reshape(-1, self.state_dim))
 
 
 

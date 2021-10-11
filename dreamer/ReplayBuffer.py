@@ -6,7 +6,7 @@ from collections import namedtuple, deque
 
 class Episode():
     def __init__(self, init_state):
-        self.states = [torch.as_tensor(init_state)]
+        self.states = [torch.as_tensor(init_state, dtype=torch.float)]
         self.rewards = []
         self.actions = []
 
