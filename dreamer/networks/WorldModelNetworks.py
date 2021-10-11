@@ -19,5 +19,8 @@ class DiscountNetwork(MLP):
         super(DiscountNetwork, self).__init__(state_dim, 1, [300], nn.GELU)
 
     def forward(self, x):
+        assert(False)
+
+    def predict_log(self, x):
         x = super().forward(x)
         return x.squeeze(len(x.shape) - 1)

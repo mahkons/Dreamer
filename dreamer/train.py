@@ -5,7 +5,7 @@ import itertools
 import torch
 import numpy as np
 
-from envs.DMControlWrapper import DMControlWrapper
+from envs import DMControlWrapper, ActionRepeatWrapper
 from utils.logger import init_logger, log
 from utils.random import init_random_seeds
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     init_logger("logdir", "tmplol")
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
 
-    env = DMControlWrapper(RANDOM_SEED)
+    env = ActionRepeatWrapper(DMControlWrapper(RANDOM_SEED), action_repeat=2)
     agent = Dreamer(env.state_dim, env.action_dim)
     train(env, agent)
 

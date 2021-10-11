@@ -34,14 +34,15 @@ class WorldModel():
         predicted_state = self.transition_fc(self.transition_model(state_action)[0])
 
         predicted_reward = self.reward_model(state)
-        predicted_done_log = self.discount_model(state)
+        predicted_discount_log = self.discount_model.predict_log(state)
 
         state_loss = F.mse_loss(state, predicted_state)
         reward_loss = F.mse_loss(reward, predicted_reward)
-        done_loss = F.binary_cross_entropy_with_logits(predicted_done_log, GAMMA * done)
+        discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_log, (1 - done) * GAMMA)
 
         self.optimizer.zero_grad()
-        (state_loss + reward_loss + done_loss).backward()
+        print(state_loss.item(), reward_loss.item(), discount_loss.item())
+        (state_loss + reward_loss + discount_loss).backward()
         self.optimizer.step()
 
         
@@ -50,8 +51,8 @@ class WorldModel():
         hidden = torch.zeros((1, state.shape[0], HIDDEN_DIM), dtype=torch.float)
         for _ in range(horizon):
             action = agent.act(state)
-            reward = torch.exp(self.reward_model(state))
-            discount = self.discount_model(state)
+            reward = self.reward_model(state)
+            discount = torch.sigmoid(self.discount_model.predict_log(state))
             _, next_hidden = self.transition_model(torch.cat([state, action], dim=1).unsqueeze(1), hidden)
             next_state = self.transition_fc(next_hidden.squeeze(0))
             state, hidden = next_state, next_hidden
