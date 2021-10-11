@@ -20,6 +20,7 @@ class Dreamer():
     def optimize(self, batch_seq):
         state, next_state, action, reward, done = batch_seq
         self.world_model.optimize(state, next_state, action, reward, done)
+        state = state[0]
         self.agent.optimize(self.world_model, state.reshape(-1, self.state_dim))
 
 
