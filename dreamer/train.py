@@ -2,6 +2,7 @@ import sys
 sys.path.append("..")
 
 import itertools
+import math
 import torch
 import numpy as np
 
@@ -20,13 +21,14 @@ MEMORY_SIZE = 10**6
 TOTAL_STEPS = 10**6
 SEQ_LEN = 50
 BATCH_SIZE = 50
-device = torch.device("cpu")
+device = torch.device("cuda")
 
 def sample_episode(env, agent):
     state = env.reset()
     episode = Episode(state)
     for steps in itertools.count(1):
         action = agent(state)
+        action = action + torch.randn_like(action) * math.sqrt(0.3) # super exploration
         next_state, reward, done = env.step(action)
         episode.add_transition(action, reward, next_state, done)
         state = next_state
@@ -46,14 +48,15 @@ def train(env, agent):
         print(episode.rewards.sum())
 
         if memory.num_steps() >= INIT_STEPS:
-            batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
-            agent.optimize(batch_seq)
+            for i in range(10):
+                batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
+                agent.optimize(batch_seq)
 
 if __name__ == "__main__":
     init_logger("logdir", "tmplol")
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
 
     env = ActionRepeatWrapper(DMControlWrapper(RANDOM_SEED), action_repeat=2)
-    agent = Dreamer(env.state_dim, env.action_dim)
+    agent = Dreamer(env.state_dim, env.action_dim, device)
     train(env, agent)
 

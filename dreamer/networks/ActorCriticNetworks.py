@@ -19,12 +19,17 @@ class ActorNetwork(nn.Module):
         self.fcmu = nn.Linear(300, action_dim)
         self.fclogs = nn.Linear(300, action_dim)
 
-    def forward(self, state):
+    def act(self, state, isTrain):
         x = self.model(state)
         mu, logs = self.fcmu(x), self.fclogs(x)
-        eps = torch.randn_like(mu)
 
-        return torch.tanh(mu + torch.exp(logs) * eps)
+        action = None
+        if isTrain:
+            eps = torch.randn_like(mu)
+            action = torch.tanh(mu + torch.exp(logs) * eps)
+        else:
+            action = torch.tanh(mu)
+        return action
         
 
 

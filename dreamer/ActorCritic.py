@@ -9,22 +9,22 @@ ACTOR_LR = 8e-5
 CRITIC_LR = 8e-5
 GAMMA = 0.99
 LAMBDA = 0.95
-HORIZON = 15
+HORIZON = 5 # TODO 15
 
 
 class ActorCritic():
-    def __init__(self, state_dim, action_dim):
+    def __init__(self, state_dim, action_dim, device):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.actor = ActorNetwork(state_dim, action_dim)
-        self.critic = CriticNetwork(state_dim)
+        self.actor = ActorNetwork(state_dim, action_dim).to(device)
+        self.critic = CriticNetwork(state_dim).to(device)
         
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=ACTOR_LR)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=CRITIC_LR)
 
 
-    def act(self, state):
-        return self.actor(state)
+    def act(self, state, isTrain):
+        return self.actor.act(state, isTrain)
 
     def optimize(self, env, init_state):
         """
@@ -45,13 +45,12 @@ class ActorCritic():
 
         values2 = self.critic(state.detach())
         values_lr2 = self._compute_value_estimates(values2, reward.detach(), discount.detach())
-        critic_loss = F.mse_loss(values2[:, :-1], values_lr2[:, :-1])
+        critic_loss = F.mse_loss(values2[:, :-1], values_lr2[:, :-1].detach()) # do i need detach here?
 
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
     
-        print(actor_loss.item(), critic_loss.item())
 
     def _compute_value_estimates(self, values, reward, discount):
         assert(len(values.shape) == 2)
