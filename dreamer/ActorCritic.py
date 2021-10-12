@@ -9,9 +9,7 @@ ACTOR_LR = 8e-5
 CRITIC_LR = 8e-5
 GAMMA = 0.99
 LAMBDA = 0.95
-HORIZON = 5 # TODO 15
-
-torch.autograd.set_detect_anomaly(True)
+HORIZON = 15
 
 class ActorCritic():
     def __init__(self, state_dim, action_dim, device):
@@ -47,6 +45,8 @@ class ActorCritic():
         # no need to backpropagate through states
         torch.autograd.grad(critic_loss, self.critic.parameters()) 
         self.critic_optimizer.step()
+
+        print(actor_loss.item(), critic_loss.item())
     
 
     def _compute_value_estimates(self, values, reward, discount):

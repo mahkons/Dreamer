@@ -21,7 +21,7 @@ class WorldModel():
         self.discount_model = DiscountNetwork(self.state_dim).to(device)
 
         self.transition_model = nn.GRU(self.state_dim + self.action_dim, HIDDEN_DIM, batch_first=True).to(device)
-        self.transition_fc = nn.Sequential(nn.GELU(), nn.Linear(HIDDEN_DIM, self.state_dim)).to(device)
+        self.transition_fc = nn.Linear(HIDDEN_DIM, self.state_dim).to(device)
 
         self.optimizer = torch.optim.Adam(itertools.chain(
             self.reward_model.parameters(),
@@ -44,6 +44,12 @@ class WorldModel():
         self.optimizer.zero_grad()
         (state_loss + reward_loss + discount_loss).backward()
         self.optimizer.step()
+
+        #  print(state_action[0][0])
+        #  print(next_state[0][0])
+        #  print(predicted_state[0][0])
+
+        print(state_loss.item(), reward_loss.item(), discount_loss.item())
 
         
     def imagine(self, agent, state, horizon):
