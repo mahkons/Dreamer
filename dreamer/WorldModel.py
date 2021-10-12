@@ -37,7 +37,7 @@ class WorldModel():
         predicted_reward = self.reward_model(state)
         predicted_discount_log = self.discount_model.predict_log(state)
 
-        state_loss = F.mse_loss(state, predicted_state)
+        state_loss = F.mse_loss(next_state, predicted_state)
         reward_loss = F.mse_loss(reward, predicted_reward)
         discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_log, (1 - done) * GAMMA)
 
@@ -62,8 +62,9 @@ class WorldModel():
             action_list.append(action)
             discount_list.append(discount)
 
-        return torch.stack(state_list).transpose(0, 1), \
-                torch.stack(action_list).transpose(0, 1), \
-                torch.stack(reward_list).transpose(0, 1), \
-                torch.stack(discount_list).transpose(0, 1)
+        # TODO use (seq_len, batch_size, state_dim) order to avoid those transposes?
+        return torch.stack(state_list).transpose(0, 1).contiguous(), \
+                torch.stack(action_list).transpose(0, 1).contiguous(), \
+                torch.stack(reward_list).transpose(0, 1).contiguous(), \
+                torch.stack(discount_list).transpose(0, 1).contiguous()
 

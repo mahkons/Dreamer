@@ -11,6 +11,7 @@ GAMMA = 0.99
 LAMBDA = 0.95
 HORIZON = 5 # TODO 15
 
+torch.autograd.set_detect_anomaly(True)
 
 class ActorCritic():
     def __init__(self, state_dim, action_dim, device):
@@ -31,7 +32,6 @@ class ActorCritic():
             :param env: differentiable environment
         """
 
-        # TODO avoid duplicate calculations and clean up
         state, action, reward, discount = env.imagine(self, init_state, HORIZON)
         values = self.critic(state)
         values_lr = self._compute_value_estimates(values, reward, discount)
@@ -42,13 +42,10 @@ class ActorCritic():
         actor_loss.backward(retain_graph=True)
         self.actor_optimizer.step()
 
-
-        values2 = self.critic(state.detach())
-        values_lr2 = self._compute_value_estimates(values2, reward.detach(), discount.detach())
-        critic_loss = F.mse_loss(values2[:, :-1], values_lr2[:, :-1].detach()) # do i need detach here?
-
+        critic_loss = F.mse_loss(values[:, :-1], values_lr[:, :-1].detach())
         self.critic_optimizer.zero_grad()
-        critic_loss.backward()
+        # no need to backpropagate through states
+        torch.autograd.grad(critic_loss, self.critic.parameters()) 
         self.critic_optimizer.step()
     
 
