@@ -69,7 +69,7 @@ class RSSM(nn.Module):
         prior_mu, prior_logs = self._get_prior(deter)
         mu, logs = self._get_post(deter, embed)
         stoch = self._reparametrization_trick(mu, logs)
-        return (stoch, deter), (mu, logs), (prior_mu, prior_logs)
+        return (stoch, deter), (prior_mu, prior_logs), (mu, logs)
         
     def imagine_step(self, prev_action, hidden):
         deter = self._deterministic_step(prev_action, hidden)

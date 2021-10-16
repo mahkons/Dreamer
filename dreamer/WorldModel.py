@@ -47,17 +47,18 @@ class WorldModel():
         predicted_reward = self.reward_model(hidden[1:])
         predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
 
-        div = torch.clip(_kl_div(post, prior), min=MIN_KL)
-        state_loss = F.mse_loss(obs, predicted_obs) + div
+        div = _kl_div(post, prior)
+        torch.clip_(div, max=MIN_KL)
+        obs_loss = F.mse_loss(obs, predicted_obs) + div
         reward_loss = F.mse_loss(reward, predicted_reward)
         discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
         self.optimizer.zero_grad()
-        (state_loss + reward_loss + discount_loss).backward()
+        (obs_loss + reward_loss + discount_loss).backward()
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
 
-        print(state_loss.item(), reward_loss.item(), discount_loss.item())
+        print(obs_loss.item(), div.item(), reward_loss.item(), discount_loss.item())
         return hidden
 
         
@@ -84,6 +85,6 @@ def _kl_div(p, q):
     qmu, qlogs = q
     d = plogs.shape[2]
     div = 0.5 * (qlogs.sum(dim=2) - plogs.sum(dim=2) - d + torch.exp(plogs - qlogs).sum(dim=2) 
-            + torch.einsum("lbi,lbj->lb", (pmu - qmu) * torch.exp(qlogs), pmu - qmu) )
+            + torch.einsum("lbi,lbi->lb", (pmu - qmu) * torch.exp(-qlogs), pmu - qmu) )
     return torch.mean(div)
 
