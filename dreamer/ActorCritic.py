@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import itertools
@@ -10,6 +11,7 @@ CRITIC_LR = 8e-5
 GAMMA = 0.99
 LAMBDA = 0.95
 HORIZON = 15
+MAX_GRAD_NORM = 100
 
 class ActorCritic():
     def __init__(self, state_dim, action_dim, device):
@@ -37,11 +39,13 @@ class ActorCritic():
         actor_loss = -values_lr.mean()
         self.actor_optimizer.zero_grad()
         actor_loss.backward(retain_graph=True)
+        nn.utils.clip_grad_norm_(self.actor.parameters(), MAX_GRAD_NORM)
         self.actor_optimizer.step()
 
         critic_loss = F.mse_loss(values[:, :-1], values_lr[:, :-1].detach())
         self.critic_optimizer.zero_grad()
         critic_loss.backward(inputs=list(self.critic.parameters()))
+        nn.utils.clip_grad_norm_(self.critic.parameters(), MAX_GRAD_NORM)
         self.critic_optimizer.step()
 
         print(actor_loss.item(), critic_loss.item())
