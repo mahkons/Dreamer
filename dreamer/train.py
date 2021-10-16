@@ -28,7 +28,7 @@ def sample_episode(env, agent):
     episode = Episode(state)
     for steps in itertools.count(1):
         action = agent(state)
-        action = action + torch.randn_like(action) * math.sqrt(0.3) # super exploration
+        action = torch.tanh(torch.atanh(action) + torch.randn_like(action) * math.sqrt(0.3)) # super exploration TODO remove atanh lol
         next_state, reward, done = env.step(action)
         episode.add_transition(action, reward, next_state, done)
         state = next_state
@@ -48,7 +48,7 @@ def train(env, agent):
         print(episode.rewards.sum())
 
         if memory.num_steps() >= INIT_STEPS:
-            for i in range(10):
+            for i in range(100):
                 batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
                 agent.optimize(batch_seq)
 

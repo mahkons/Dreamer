@@ -9,7 +9,7 @@ ACTOR_LR = 8e-5
 CRITIC_LR = 8e-5
 GAMMA = 0.99
 LAMBDA = 0.95
-HORIZON = 15
+HORIZON = 5 # 15
 
 class ActorCritic():
     def __init__(self, state_dim, action_dim, device):
@@ -21,7 +21,6 @@ class ActorCritic():
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=ACTOR_LR)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=CRITIC_LR)
 
-
     def act(self, state, isTrain):
         return self.actor.act(state, isTrain)
 
@@ -30,6 +29,7 @@ class ActorCritic():
             :param env: differentiable environment
         """
 
+        init_state = env.encoder(init_state).detach() # TODO do not do this twice
         state, action, reward, discount = env.imagine(self, init_state, HORIZON)
         values = self.critic(state)
         values_lr = self._compute_value_estimates(values, reward, discount)
@@ -37,7 +37,7 @@ class ActorCritic():
 
         actor_loss = -values_lr.mean()
         self.actor_optimizer.zero_grad()
-        actor_loss.backward(retain_graph=True)
+        torch.autograd.grad(actor_loss, self.actor.parameters(), retain_graph=True)
         self.actor_optimizer.step()
 
         critic_loss = F.mse_loss(values[:, :-1], values_lr[:, :-1].detach())

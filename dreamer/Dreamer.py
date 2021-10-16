@@ -11,17 +11,19 @@ class Dreamer():
         self.action_dim = action_dim
         self.device = device
 
+        HIDDEN_DIM = 64
         self.world_model = WorldModel(state_dim, action_dim, device)
-        self.agent = ActorCritic(state_dim, action_dim, device)
+        self.agent = ActorCritic(HIDDEN_DIM, action_dim, device)
 
     def __call__(self, state):
         with torch.no_grad():
-            return self.agent.act(
-                    torch.as_tensor(state, dtype=torch.float).to(self.device), 
-                    isTrain=False).cpu()
+            state = torch.as_tensor(state, dtype=torch.float).to(self.device)
+            state = self.world_model.encoder(state)
+            return self.agent.act(state, isTrain=False).cpu()
 
     def optimize(self, batch_seq):
         state, next_state, action, reward, done = batch_seq
+
         self.world_model.optimize(state, next_state, action, reward, done)
         self.agent.optimize(self.world_model, state.reshape(-1, self.state_dim))
 
