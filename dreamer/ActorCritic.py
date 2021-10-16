@@ -9,7 +9,7 @@ ACTOR_LR = 8e-5
 CRITIC_LR = 8e-5
 GAMMA = 0.99
 LAMBDA = 0.95
-HORIZON = 5 # 15
+HORIZON = 15
 
 class ActorCritic():
     def __init__(self, state_dim, action_dim, device):
@@ -41,12 +41,7 @@ class ActorCritic():
 
         critic_loss = F.mse_loss(values[:, :-1], values_lr[:, :-1].detach())
         self.critic_optimizer.zero_grad()
-        # no need to backpropagate through states
-        # TODO more optimal inplace solution? Freeze grads or something
-        critic_params_grads = torch.autograd.grad(critic_loss, self.critic.parameters()) 
-        for param, grad in zip(critic_params_grads, self.critic.parameters()):
-            param._grad = grad
-
+        critic_loss.backward(inputs=list(self.critic.parameters()))
         self.critic_optimizer.step()
 
         print(actor_loss.item(), critic_loss.item())
@@ -56,9 +51,9 @@ class ActorCritic():
         assert(len(values.shape) == 2)
 
         values_lr = values.clone()
-        for i in reversed(range(reward.shape[1])):
-            values_lr[:, i] = reward[:, i] + discount[:, i] * \
-                    ((1 - LAMBDA) * values[:, i + 1] + LAMBDA * values_lr[:, i + 1])
+        for i in reversed(range(reward.shape[0])):
+            values_lr[i] = reward[i] + discount[i] * \
+                    ((1 - LAMBDA) * values[i + 1] + LAMBDA * values_lr[i + 1])
         return values_lr
 
 

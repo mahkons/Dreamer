@@ -26,10 +26,10 @@ class Dreamer():
             return torch.tanh(mu + torch.randn_like(mu) * math.sqrt(0.3)) # superb exploration
 
     def optimize(self, batch_seq):
-        state, next_state, action, reward, done = batch_seq
+        state, action, reward, done = batch_seq
 
-        self.world_model.optimize(state, next_state, action, reward, done)
-        self.agent.optimize(self.world_model, state.reshape(-1, self.state_dim))
+        self.world_model.optimize(state, action, reward, done)
+        self.agent.optimize(self.world_model, state[:-1].reshape(-1, self.state_dim))
 
 
 

@@ -31,8 +31,7 @@ class Episode():
             pos = len(self) - seq_len
             done[-1] = 1
 
-        return self.states[pos : pos + seq_len], \
-                self.states[pos + 1 : pos + seq_len + 1], \
+        return self.states[pos : pos + seq_len + 1], \
                 self.actions[pos : pos + seq_len], \
                 self.rewards[pos : pos + seq_len], \
                 done
@@ -69,12 +68,11 @@ class ReplayBuffer():
         """
         episodes = [self.step_to_episode[step] for step in np.random.choice(len(self.step_to_episode), size=batch_size)]
         trajectories = [episode.sample(seq_len) for episode in episodes]        
-        state, next_state, action, reward, done = zip(*trajectories)
-        return torch.stack(state).to(device), \
-            torch.stack(next_state).to(device), \
-            torch.stack(action).to(device), \
-            torch.stack(reward).to(device), \
-            torch.stack(done).to(device)
+        state, action, reward, done = zip(*trajectories)
+        return torch.stack(state).transpose(0, 1).to(device), \
+            torch.stack(action).transpose(0, 1).to(device), \
+            torch.stack(reward).transpose(0, 1).to(device), \
+            torch.stack(done).transpose(0, 1).to(device)
 
     def num_episodes(self):
         return len(self.memory)
