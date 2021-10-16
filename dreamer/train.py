@@ -55,7 +55,10 @@ if __name__ == "__main__":
     init_logger("logdir", "tmplol")
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
 
-    env = ActionRepeatWrapper(DMControlWrapper(RANDOM_SEED), action_repeat=2)
+    env = ActionRepeatWrapper(
+        DMControlWrapper("cartpole", "balance", from_pixels=False, random_seed=RANDOM_SEED),
+        action_repeat=2
+    )
     agent = Dreamer(env.state_dim, env.action_dim, device)
     train(env, agent)
 

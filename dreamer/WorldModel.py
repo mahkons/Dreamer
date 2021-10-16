@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 import itertools
 
-from networks import RewardNetwork, DiscountNetwork
+from networks import RewardNetwork, DiscountNetwork, ObservationEncoder, ObservationDecoder
 
 HIDDEN_DIM = 64
 
@@ -23,8 +23,8 @@ class WorldModel():
 
         self.transition_model = nn.GRU(self.action_dim, HIDDEN_DIM).to(device)
 
-        self.encoder = nn.Sequential(nn.Linear(self.state_dim, 300), nn.GELU(), nn.Linear(300, HIDDEN_DIM)).to(device)
-        self.decoder = nn.Sequential(nn.Linear(HIDDEN_DIM, 300), nn.GELU(), nn.Linear(300, self.state_dim)).to(device)
+        self.encoder = ObservationEncoder(self.state_dim, HIDDEN_DIM, from_pixels=False).to(device)
+        self.decoder = ObservationDecoder(HIDDEN_DIM, self.state_dim, from_pixels=False).to(device)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),

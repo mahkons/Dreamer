@@ -2,17 +2,18 @@ import numpy as np
 from dm_control import suite
 
 class DMControlWrapper():
-    def __init__(self, random_seed):
+    def __init__(self, domain_name, task_name, from_pixels, random_seed):
         self.env = suite.load(
-            domain_name="cartpole",
-            task_name="balance",
+            domain_name=domain_name,
+            task_name=task_name,
             task_kwargs={"random": random_seed},
         )
         print(self.env.action_spec()) # TODO all kind of assertions
         self.action_dim = self.env.action_spec().shape[0]
-        #TODO learn from pixels
+
         self.state_dim = sum(map(lambda v: v.shape[0], self.env.observation_spec().values()))
-        self.from_pixels = False
+        self.from_pixels = from_pixels
+        assert not self.from_pixels
 
     def reset(self):
         time_step = self.env.reset()
