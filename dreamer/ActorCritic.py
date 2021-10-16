@@ -31,7 +31,7 @@ class ActorCritic():
             :param env: differentiable environment
         """
 
-        init_state = env.encoder(init_state).detach() # TODO do not do this twice
+        init_state = env.encoder(init_state).detach() # TODO do not do this twice (here and worldmodel)
         state, action, reward, discount = env.imagine(self, init_state, HORIZON)
         values = self.critic(state)
         values_lr = self._compute_value_estimates(values, reward, discount)
@@ -42,7 +42,7 @@ class ActorCritic():
         nn.utils.clip_grad_norm_(self.actor.parameters(), MAX_GRAD_NORM)
         self.actor_optimizer.step()
 
-        critic_loss = F.mse_loss(values[:, :-1], values_lr[:, :-1].detach())
+        critic_loss = F.mse_loss(values[:-1], values_lr[:-1].detach())
         self.critic_optimizer.zero_grad()
         critic_loss.backward(inputs=list(self.critic.parameters()))
         nn.utils.clip_grad_norm_(self.critic.parameters(), MAX_GRAD_NORM)

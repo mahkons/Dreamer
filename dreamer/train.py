@@ -47,7 +47,7 @@ def train(env, agent):
         print(episode.rewards.sum())
 
         if memory.num_steps() >= INIT_STEPS:
-            for i in range(5):
+            for i in range(10):
                 batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
                 agent.optimize(batch_seq)
 

@@ -21,6 +21,6 @@ class DiscountNetwork(MLP):
     def forward(self, x):
         assert(False)
 
-    def predict_log(self, x):
+    def predict_logit(self, x):
         x = super().forward(x)
         return x.squeeze(len(x.shape) - 1)
