@@ -34,16 +34,19 @@ class ActorCritic():
         values = self.critic(state)
         values_lr = self._compute_value_estimates(values, reward, discount)
 
-
         actor_loss = -values_lr.mean()
         self.actor_optimizer.zero_grad()
-        torch.autograd.grad(actor_loss, self.actor.parameters(), retain_graph=True)
+        actor_loss.backward(retain_graph=True)
         self.actor_optimizer.step()
 
         critic_loss = F.mse_loss(values[:, :-1], values_lr[:, :-1].detach())
         self.critic_optimizer.zero_grad()
         # no need to backpropagate through states
-        torch.autograd.grad(critic_loss, self.critic.parameters()) 
+        # TODO more optimal inplace solution? Freeze grads or something
+        critic_params_grads = torch.autograd.grad(critic_loss, self.critic.parameters()) 
+        for param, grad in zip(critic_params_grads, self.critic.parameters()):
+            param._grad = grad
+
         self.critic_optimizer.step()
 
         print(actor_loss.item(), critic_loss.item())

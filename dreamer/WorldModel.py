@@ -50,13 +50,6 @@ class WorldModel():
         (state_loss + reward_loss + discount_loss).backward()
         self.optimizer.step()
 
-        #  print(action[0, :, 0])
-        #  print(done[0])
-        #  print(torch.sigmoid(predicted_discount_log[0]))
-        #  print(state_action[0][0])
-        #  print(next_state[0][0])
-        #  print(predicted_state[0][0])
-
         print(state_loss.item(), reward_loss.item(), discount_loss.item())
 
         

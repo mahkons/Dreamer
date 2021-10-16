@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import math
 
 from WorldModel import WorldModel
 from ActorCritic import ActorCritic
@@ -19,7 +20,10 @@ class Dreamer():
         with torch.no_grad():
             state = torch.as_tensor(state, dtype=torch.float).to(self.device)
             state = self.world_model.encoder(state)
-            return self.agent.act(state, isTrain=False).cpu()
+            action, mu = self.agent.act(state, isTrain=False)
+            
+            mu = mu.cpu()
+            return torch.tanh(mu + torch.randn_like(mu) * math.sqrt(0.3)) # superb exploration
 
     def optimize(self, batch_seq):
         state, next_state, action, reward, done = batch_seq

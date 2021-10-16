@@ -28,7 +28,6 @@ def sample_episode(env, agent):
     episode = Episode(state)
     for steps in itertools.count(1):
         action = agent(state)
-        action = torch.tanh(torch.atanh(action) + torch.randn_like(action) * math.sqrt(0.3)) # super exploration TODO remove atanh lol
         next_state, reward, done = env.step(action)
         episode.add_transition(action, reward, next_state, done)
         state = next_state

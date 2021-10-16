@@ -26,7 +26,7 @@ class Episode():
     def sample(self, seq_len):
         assert(self.done)
         pos = np.random.choice(len(self))
-        done = torch.zeros(seq_len, dtype=torch.float)
+        done = torch.zeros(seq_len, dtype=torch.float) # TODO avoid creating same immutable tensors
         if pos >= len(self) - seq_len:
             pos = len(self) - seq_len
             done[-1] = 1
