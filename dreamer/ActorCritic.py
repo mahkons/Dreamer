@@ -31,7 +31,6 @@ class ActorCritic():
             :param env: differentiable environment
         """
 
-        init_state = env.encoder(init_state).detach() # TODO do not do this twice (here and worldmodel)
         state, action, reward, discount = env.imagine(self, init_state, HORIZON)
         values = self.critic(state)
         values_lr = self._compute_value_estimates(values, reward, discount)

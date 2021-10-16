@@ -20,17 +20,18 @@ INIT_STEPS = 10**4
 MEMORY_SIZE = 10**6
 TOTAL_STEPS = 10**6
 SEQ_LEN = 50
-BATCH_SIZE = 50
+BATCH_SIZE = 30
 device = torch.device("cuda")
 
 def sample_episode(env, agent):
-    state = env.reset()
-    episode = Episode(state)
+    obs = env.reset()
+    episode = Episode(obs)
+    hidden, action = agent.world_model.transition_model.initial_state(batch_size=1) 
+    action.squeeze_(0)
     for steps in itertools.count(1):
-        action = agent(state)
-        next_state, reward, done = env.step(action)
-        episode.add_transition(action, reward, next_state, done)
-        state = next_state
+        action, hidden = agent(obs, hidden, action.unsqueeze(0))
+        obs, reward, done = env.step(action)
+        episode.add_transition(action, reward, obs, done)
         if done:
             break
     return episode
