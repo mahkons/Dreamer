@@ -27,7 +27,8 @@ class Dreamer():
             action, mu = self.agent.act(torch.cat(next_hidden, dim=-1), isTrain=False)
             
             mu = mu[0].cpu()
-            return torch.tanh(mu + torch.randn_like(mu) * math.sqrt(0.3)), next_hidden # superb exploration
+            action = torch.tanh(mu) + torch.randn_like(mu) * math.sqrt(0.3) # superb exploration
+            return action.clip_(-1, 1), next_hidden
 
     def optimize(self, batch_seq):
         obs, action, reward, done = batch_seq

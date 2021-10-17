@@ -8,8 +8,12 @@ class DMControlWrapper():
             task_name=task_name,
             task_kwargs={"random": random_seed},
         )
-        print(self.env.action_spec()) # TODO all kind of assertions
-        self.action_dim = self.env.action_spec().shape[0]
+        action_spec = self.env.action_spec()
+        assert(all(action_spec.minimum == -1))
+        assert(all(action_spec.maximum == 1))
+        assert(len(action_spec.shape) == 1)
+
+        self.action_dim = action_spec.shape[0]
 
         self.state_dim = sum(map(lambda v: v.shape[0], self.env.observation_spec().values()))
         self.from_pixels = from_pixels
