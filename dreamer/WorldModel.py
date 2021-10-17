@@ -84,7 +84,7 @@ def _kl_div(p, q):
     pmu, plogs = p
     qmu, qlogs = q
     d = plogs.shape[2]
-    div = 0.5 * (qlogs.sum(dim=2) - plogs.sum(dim=2) - d + torch.exp(2 * (plogs - qlogs)).sum(dim=2) 
+    div = (qlogs.sum(dim=2) - plogs.sum(dim=2)) + 0.5 * (-d + torch.exp(2 * (plogs - qlogs)).sum(dim=2) 
             + torch.einsum("lbi,lbi->lb", (pmu - qmu) * torch.exp(-2 * qlogs), pmu - qmu) )
     return torch.mean(div)
 
