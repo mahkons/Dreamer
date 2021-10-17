@@ -14,7 +14,7 @@ MAX_GRAD_NORM = 100
 STOCH_DIM = 32
 DETER_DIM = 256
 EMBED_DIM = 256
-MIN_KL = 3. # TODO understand why
+MIN_KL = 3.
 
 class WorldModel():
     def __init__(self, state_dim, action_dim, device):
@@ -84,7 +84,7 @@ def _kl_div(p, q):
     pmu, plogs = p
     qmu, qlogs = q
     d = plogs.shape[2]
-    div = 0.5 * (qlogs.sum(dim=2) - plogs.sum(dim=2) - d + torch.exp(plogs - qlogs).sum(dim=2) 
-            + torch.einsum("lbi,lbi->lb", (pmu - qmu) * torch.exp(-qlogs), pmu - qmu) )
+    div = 0.5 * (qlogs.sum(dim=2) - plogs.sum(dim=2) - d + torch.exp(2 * (plogs - qlogs)).sum(dim=2) 
+            + torch.einsum("lbi,lbi->lb", (pmu - qmu) * torch.exp(-2 * qlogs), pmu - qmu) )
     return torch.mean(div)
 
