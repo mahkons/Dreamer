@@ -23,7 +23,8 @@ SEQ_LEN = 50
 BATCH_SIZE = 30 # TODO 50 does not fit on my small local gpu =(
 FROM_PIXELS = False
 TRAIN_ITERS_PER_EPISODE = 10
-device = torch.device("cpu")
+device = torch.device("cuda")
+ACTION_REPEAT = 2
 
 def sample_episode(env, agent):
     obs = env.reset()
@@ -43,12 +44,13 @@ def train(env, agent):
     log().add_plot("eval_reward", ["episode", "steps", "reward"])
 
     memory = ReplayBuffer(MEMORY_SIZE)
+    # TODO preprocess obs
 
     step_count, episode_count = 0, 0
     while step_count < TOTAL_STEPS:
         episode = sample_episode(env, agent)
         memory.push(episode)
-        step_count += len(episode)
+        step_count += len(episode) * ACTION_REPEAT
         episode_count += 1
         log().add_plot_point("eval_reward", [episode_count, step_count, episode.rewards.sum()])
         print(episode.rewards.sum())
@@ -67,7 +69,7 @@ if __name__ == "__main__":
 
     env = ActionRepeatWrapper(
         DMControlWrapper("cartpole", "balance", from_pixels=FROM_PIXELS, random_seed=RANDOM_SEED),
-        action_repeat=2
+        action_repeat=ACTION_REPEAT
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
     train(env, agent)

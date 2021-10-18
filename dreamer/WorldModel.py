@@ -17,7 +17,7 @@ FROM_PIXELS = False
 STOCH_DIM = 32
 DETER_DIM = 256
 EMBED_DIM = 256
-MIN_KL = 3.
+MAX_KL = 3.
 
 class WorldModel():
     def __init__(self, state_dim, action_dim, device):
@@ -53,7 +53,7 @@ class WorldModel():
         predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
 
         div = _kl_div(post, prior)
-        torch.clip_(div, max=MIN_KL)
+        torch.clip_(div, max=MAX_KL)
         obs_loss = F.mse_loss(obs, predicted_obs) + div
         reward_loss = F.mse_loss(reward, predicted_reward)
         discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
