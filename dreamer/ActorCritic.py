@@ -25,7 +25,7 @@ class ActorCritic():
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=ACTOR_LR)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=CRITIC_LR)
 
-        log().add_plot("agent_loss", ["actor_loss, critic_loss"])
+        log().add_plot("agent_loss", ["actor_loss", "critic_loss"])
 
     def act(self, state, isTrain):
         return self.actor.act(state, isTrain)

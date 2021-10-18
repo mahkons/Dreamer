@@ -30,7 +30,7 @@ class Logger():
 
         self.plots = dict()
         self.plots_columns = dict()
-        self.max_rows = 10**5
+        self.max_rows = 10**4
         self.cur_rows = 0
 
         self.time_metrics = defaultdict(float)

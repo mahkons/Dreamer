@@ -12,7 +12,7 @@ from models.RSSM import RSSM
 MODEL_LR = 6e-4
 GAMMA = 0.99
 MAX_GRAD_NORM = 100
-FROM_PIXELS = True
+FROM_PIXELS = False
 
 STOCH_DIM = 32
 DETER_DIM = 256
@@ -41,7 +41,7 @@ class WorldModel():
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR)
 
-        log().add_plot("model_loss", ["reconstruction_loss, kl_divergence_loss", "reward_loss", "discount_loss"])
+        log().add_plot("model_loss", ["reconstruction_loss", "kl_divergence_loss", "reward_loss", "discount_loss"])
 
 
     def optimize(self, obs, action, reward, done):

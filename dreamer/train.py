@@ -21,7 +21,8 @@ MEMORY_SIZE = 10**6
 TOTAL_STEPS = 10**6
 SEQ_LEN = 50
 BATCH_SIZE = 30 # TODO 50 does not fit on my small local gpu =(
-FROM_PIXELS = True
+FROM_PIXELS = False
+TRAIN_ITERS_PER_EPISODE = 10
 device = torch.device("cpu")
 
 def sample_episode(env, agent):
@@ -53,7 +54,7 @@ def train(env, agent):
         print(episode.rewards.sum())
 
         if memory.num_steps() >= INIT_STEPS:
-            for i in range(10):
+            for i in range(TRAIN_ITERS_PER_EPISODE):
                 batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
                 agent.optimize(batch_seq)
 
