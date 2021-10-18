@@ -47,13 +47,13 @@ class ObservationEncoder(nn.Module):
 
     def forward(self, x):
         if len(x.shape) > 4 and self.from_pixels: # convolutional layers does not accept 5d tensors
-            out_shape = list(x.shape)[:-3] + [out_dim]
-            return self.model(x.reshape(-1, self.obs_dim)).reshape(out_shape)
+            out_shape = list(x.shape)[:-3] + [self.out_dim]
+            return self.model(x.reshape(-1, *self.obs_dim)).reshape(out_shape)
         return self.model(x)
 
     def _build_model(self):
         if not self.from_pixels:
-            return MLP(obs_dim, out_dim, [300, 300], nn.GELU)
+            return MLP(self.obs_dim, self.out_dim, [300, 300], nn.GELU)
 
         return nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=4, stride=2),
@@ -75,7 +75,7 @@ class MyUnflattenModule(nn.Module):
         self.n = n_new_dims
 
     def forward(self, x):
-        return x.view(list(x.shape) + [None] * self.n)
+        return x.view(list(x.shape) + [1] * self.n)
 
 class ObservationDecoder(nn.Module):
     def __init__(self, in_dim, obs_dim, from_pixels):
@@ -88,13 +88,13 @@ class ObservationDecoder(nn.Module):
 
     def forward(self, x):
         if len(x.shape) > 2 and self.from_pixels: # convolutional layers does not accept 5d tensors
-            out_shape = list(x.shape)[:-2] + [out_dim]
+            out_shape = list(x.shape)[:-1] + [*self.obs_dim]
             return self.model(x.reshape(-1, self.in_dim)).reshape(out_shape)
         return self.model(x)
 
     def _build_model(self):
         if not self.from_pixels:
-            return MLP(obs_dim, out_dim, [300, 300], nn.GELU)
+            return MLP(self.in_dim, self.obs_dim, [300, 300], nn.GELU)
 
         return nn.Sequential(
             nn.Linear(self.in_dim, 1024),

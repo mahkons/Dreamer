@@ -16,13 +16,13 @@ from ReplayBuffer import Episode, ReplayBuffer
 # TODO
 # put all hyperparameters in some sort of config
 RANDOM_SEED = 239
-INIT_STEPS = 10**4
+INIT_STEPS = 10**2
 MEMORY_SIZE = 10**6
 TOTAL_STEPS = 10**6
 SEQ_LEN = 50
 BATCH_SIZE = 30 # TODO 50 does not fit on my small local gpu =(
 FROM_PIXELS = True
-device = torch.device("cuda")
+device = torch.device("cpu")
 
 def sample_episode(env, agent):
     obs = env.reset()
@@ -56,7 +56,6 @@ def train(env, agent):
             for i in range(10):
                 batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
                 agent.optimize(batch_seq)
-                print("YEAH")
 
     log().save_logs() # TODO logger context
 
