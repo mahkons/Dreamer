@@ -44,7 +44,6 @@ def train(env, agent):
     log().add_plot("eval_reward", ["episode", "steps", "reward"])
 
     memory = ReplayBuffer(MEMORY_SIZE)
-    # TODO preprocess obs
 
     step_count, episode_count = 0, 0
     while step_count < TOTAL_STEPS:
