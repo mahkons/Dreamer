@@ -52,8 +52,7 @@ class WorldModel():
         predicted_reward = self.reward_model(hidden[1:])
         predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
 
-        div = _kl_div(post, prior)
-        torch.clip_(div, max=MAX_KL)
+        div = _kl_div(post, prior).clip(max=MAX_KL)
         obs_loss = F.mse_loss(obs, predicted_obs) + div
         reward_loss = F.mse_loss(reward, predicted_reward)
         discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
@@ -76,7 +75,7 @@ class WorldModel():
         state_list, reward_list, discount_list, action_list = [state], [], [], []
         for _ in range(horizon):
             action = agent.act(state, isTrain=True)
-            state, _ = self.transition_model.imagine_step(action, torch.split(state, [STOCH_DIM, DETER_DIM], dim=1))
+            state, _ = self.transition_model.imagine_step(action, torch.split(state.detach(), [STOCH_DIM, DETER_DIM], dim=1))
             state = torch.cat(state, dim=-1)
 
             state_list.append(state)
