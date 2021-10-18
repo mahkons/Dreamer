@@ -16,12 +16,12 @@ from ReplayBuffer import Episode, ReplayBuffer
 # TODO
 # put all hyperparameters in some sort of config
 RANDOM_SEED = 239
-INIT_STEPS = 10**2
+INIT_STEPS = 10**4
 MEMORY_SIZE = 10**6
 TOTAL_STEPS = 10**6
 SEQ_LEN = 50
 BATCH_SIZE = 30 # TODO 50 does not fit on my small local gpu =(
-FROM_PIXELS = True
+FROM_PIXELS = False
 device = torch.device("cpu")
 
 def sample_episode(env, agent):
