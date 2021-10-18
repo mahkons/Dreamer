@@ -54,7 +54,7 @@ class RSSM(nn.Module):
         hidden, prev_action = self.initial_state(batch_size)
 
         hidden_list = [None]*seq_len
-        pmu_list, plogs_list, qmu_list, qlogs_list = \
+        prior_mu, prior_logs, post_mu, post_logs = \
                 [None]*seq_len, [None]*seq_len, [None]*seq_len, [None]*seq_len
 
         for i, (embed, action) in enumerate(zip(embed_seq, itertools.chain([prev_action], action_seq))):
