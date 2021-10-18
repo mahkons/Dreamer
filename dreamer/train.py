@@ -21,7 +21,7 @@ MEMORY_SIZE = 10**6
 TOTAL_STEPS = 10**6
 SEQ_LEN = 50
 BATCH_SIZE = 30 # TODO 50 does not fit on my small local gpu =(
-FROM_PIXELS = False
+FROM_PIXELS = True
 device = torch.device("cpu")
 
 def sample_episode(env, agent):
@@ -57,7 +57,7 @@ def train(env, agent):
                 batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
                 agent.optimize(batch_seq)
 
-    log().save_logs() # TODO logger context
+        log().save_logs() # TODO logger context?
 
 
 if __name__ == "__main__":
