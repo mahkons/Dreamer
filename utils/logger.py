@@ -5,6 +5,7 @@ import numpy as np
 from collections import defaultdict
 import time
 import shutil
+import datetime
 
 logger__ = None
 
@@ -27,9 +28,10 @@ class Logger():
         self.dir = os.path.join(logdir, logname)
         os.mkdir(self.dir)
 
-        self.params = dict()
         self.plots = dict()
         self.plots_columns = dict()
+        self.max_rows = 10**5
+        self.cur_rows = 0
 
         self.time_metrics = defaultdict(float)
         self.prev_time = None
@@ -37,24 +39,30 @@ class Logger():
     def get_log_path(self):
         return self.dir
 
-    def update_params(self, params):
-        self.params.update(params.to_dict())
-        params_path = os.path.join(self.dir, "params.csv")
-        pd.DataFrame(self.params.items(), columns=("name", "value")).to_csv(params_path, index=False)
-
     def add_plot(self, name, columns):
         assert name not in self.plots
         self.plots[name] = list()
-        self.plots_columns[name] = columns
+        self.plots_columns[name] = list(columns) + ["time"]
 
     def add_plot_point(self, name, point):
+        cur_time_str = str(datetime.datetime.now())
+        point = list(point) + [cur_time_str]
+        
         self.plots[name].append(point)
+        self.cur_rows += 1
+        if self.cur_rows >= self.max_rows:
+            self.save_logs()
 
     def add_plot_points(self, name, points):
-        self.plots[name].extend(points)
+        cur_time_str = str(datetime.datetime.now())
+        points = [list(point) + [cur_time_str] for point in points]
 
-    def get_plot(self, name):
-        return self.plots[name]
+        self.plots[name].extend(points)
+        self.cur_rows += len(points)
+        if self.cur_rows >= self.max_rows:
+            self.save_logs()
+
+
 
     def check_time(self, add_to_value=None):
         now = time.time()
@@ -73,16 +81,6 @@ class Logger():
             print("{}: {} seconds".format(k, v))
         print("=" * 50)
 
-    # clears saved logs
-    def save_logs(self):
-        self.save_csv()
-        self.clear_logs()
-
-    def save_model(self, model, name):
-        models_path = os.path.join(self.dir, "models")
-        os.makedirs(models_path, exist_ok=True)
-        torch.save(model, os.path.join(models_path, name))
-
     def save_csv(self):
         plot_path = os.path.join(self.dir, "plots")
         os.makedirs(plot_path, exist_ok=True)
@@ -91,7 +89,14 @@ class Logger():
             pd.DataFrame(plot_data, columns=self.plots_columns[plot_name]).to_csv(filename, index=False, mode='a', \
                     header=not os.path.exists(filename)) # append
 
+
+    # clears saved logs
+    def save_logs(self):
+        self.save_csv()
+        self.clear_logs()
+
     def clear_logs(self):
+        self.cur_rows = 0
         for key, value in self.plots.items():
             value.clear()
         self.time_metrics.clear()

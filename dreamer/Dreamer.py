@@ -20,9 +20,9 @@ class Dreamer():
 
     def __call__(self, obs, hidden, prev_action):
         with torch.no_grad():
-            obs = torch.as_tensor(obs, dtype=torch.float, device=self.device)
+            obs = torch.as_tensor(obs, dtype=torch.float, device=self.device).unsqueeze(0)
             prev_action = torch.as_tensor(prev_action, dtype=torch.float, device=self.device).unsqueeze(0)
-            embed = self.world_model.encoder(obs).unsqueeze(0)
+            embed = self.world_model.encoder(obs)
             next_hidden, _, _ = self.world_model.transition_model.obs_step(prev_action, hidden, embed)
             action, mu = self.agent.act(torch.cat(next_hidden, dim=-1), isTrain=False)
             

@@ -15,9 +15,13 @@ class DMControlWrapper():
 
         self.action_dim = action_spec.shape[0]
 
-        self.state_dim = sum(map(lambda v: v.shape[0], self.env.observation_spec().values()))
         self.from_pixels = from_pixels
-        assert not self.from_pixels
+        if self.from_pixels:
+            self._size = (64, 64)
+            self.state_dim = (3, 64, 64)
+            self._camera = dict(quadruped=2).get(domain_name, 0) # TODO from dreamer why?
+        else:
+            self.state_dim = sum(map(lambda v: v.shape[0], self.env.observation_spec().values()))
 
     def reset(self):
         time_step = self.env.reset()
@@ -31,7 +35,8 @@ class DMControlWrapper():
 
     def _get_obs(self, time_step):
         if self.from_pixels:
-            assert(False)
+            obs = self.env.physics.render(*self._size, camera_id=self._camera)
+            return np.ascontiguousarray(obs.transpose(2, 0, 1))
         else:
             return np.concatenate(list(time_step.observation.values()))
 

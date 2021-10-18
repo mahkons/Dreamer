@@ -4,12 +4,15 @@ import torch.nn.functional as F
 import numpy as np
 import itertools
 
+from utils.logger import log
+
 from networks import RewardNetwork, DiscountNetwork, ObservationEncoder, ObservationDecoder
 from models.RSSM import RSSM
 
 MODEL_LR = 6e-4
 GAMMA = 0.99
 MAX_GRAD_NORM = 100
+FROM_PIXELS = True
 
 STOCH_DIM = 32
 DETER_DIM = 256
@@ -25,8 +28,8 @@ class WorldModel():
         self.reward_model = RewardNetwork(STOCH_DIM + DETER_DIM).to(device)
         self.discount_model = DiscountNetwork(STOCH_DIM + DETER_DIM).to(device)
         self.transition_model = RSSM(STOCH_DIM, DETER_DIM, EMBED_DIM, self.action_dim).to(device)
-        self.encoder = ObservationEncoder(self.state_dim, EMBED_DIM, from_pixels=False).to(device)
-        self.decoder = ObservationDecoder(STOCH_DIM + DETER_DIM, self.state_dim, from_pixels=False).to(device)
+        self.encoder = ObservationEncoder(self.state_dim, EMBED_DIM, from_pixels=FROM_PIXELS).to(device)
+        self.decoder = ObservationDecoder(STOCH_DIM + DETER_DIM, self.state_dim, from_pixels=FROM_PIXELS).to(device)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
@@ -37,6 +40,8 @@ class WorldModel():
         )
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR)
+
+        log().add_plot("model_loss", ["reconstruction_loss, kl_divergence_loss", "reward_loss", "discount_loss"])
 
 
     def optimize(self, obs, action, reward, done):
@@ -58,7 +63,12 @@ class WorldModel():
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
 
-        print(obs_loss.item(), div.item(), reward_loss.item(), discount_loss.item())
+        log().add_plot_point("model_loss", [
+            obs_loss.item() - div.item(),
+            div.item(),
+            reward_loss.item(),
+            discount_loss.item()
+        ])
         return hidden
 
         
