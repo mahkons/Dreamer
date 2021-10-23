@@ -8,7 +8,7 @@ from utils.logger import log
 
 from networks import RewardNetwork, DiscountNetwork, ObservationEncoder, ObservationDecoder
 from models.RSSM import RSSM
-from params.py import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS
+from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS
 
 
 class WorldModel():
