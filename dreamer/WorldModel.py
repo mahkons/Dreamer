@@ -54,8 +54,6 @@ class WorldModel():
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
 
-        print(obs_loss.item(), div.item())
-
         log().add_plot_point("model_loss", [
             obs_loss.item() - div.item(),
             div.item(),
