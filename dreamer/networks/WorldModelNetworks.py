@@ -39,9 +39,14 @@ class StubDiscountNetwork(nn.Module):
         super(StubDiscountNetwork, self).__init__()
         self.gamma = gamma
         self.scale = math.log(gamma) - math.log(1 - gamma)
+        self.device = torch.device("cpu")
+
+    def to(self, device):
+        self.device = device
+        return super().to(device)
 
     def predict_logit(self, x):
-        return torch.ones(x.shape[:-1]) * self.scale
+        return torch.ones(x.shape[:-1], device=self.device) * self.scale
 
 
 
