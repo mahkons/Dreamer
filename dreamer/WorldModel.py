@@ -48,6 +48,7 @@ class WorldModel():
         obs_loss = F.mse_loss(obs, predicted_obs) + div
         reward_loss = F.mse_loss(reward, predicted_reward)
 
+        discount_loss = torch.tensor(0.)
         if PREDICT_DONE:
             predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
