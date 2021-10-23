@@ -40,7 +40,7 @@ class StubDiscountNetwork(nn.Module):
         self.gamma = gamma
         self.scale = math.log(gamma) - math.log(1 - gamma)
 
-    def predict_log(self, x):
+    def predict_logit(self, x):
         return torch.ones(x.shape[:-1]) * self.scale
 
 
