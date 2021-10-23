@@ -5,15 +5,8 @@ import numpy as np
 import itertools
 
 from utils.logger import log
-
 from networks import ActorNetwork, CriticNetwork
-
-ACTOR_LR = 8e-5
-CRITIC_LR = 8e-5
-GAMMA = 0.99
-LAMBDA = 0.95
-HORIZON = 15
-MAX_GRAD_NORM = 100
+from params import ACTOR_LR, CRITIC_LR, GAMMA, LAMBDA, HORIZON, MAX_GRAD_NORM
 
 class ActorCritic():
     def __init__(self, state_dim, action_dim, device):

@@ -4,10 +4,8 @@ import math
 
 from WorldModel import WorldModel
 from ActorCritic import ActorCritic
+from params import STOCH_DIM, DETER_DIM, EMBED_DIM
 
-STOCH_DIM = 32
-DETER_DIM = 256
-EMBED_DIM = 256
 
 class Dreamer():
     def __init__(self, state_dim, action_dim, device):

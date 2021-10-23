@@ -3,7 +3,7 @@ import torch.nn as nn
 
 import itertools
 
-RSSM_HIDDEN_DIM = 200
+from params import RSSM_HIDDEN_DIM
 
 class RSSM(nn.Module):
     def __init__(self, stoch_dim, deter_dim, embed_dim, action_dim):

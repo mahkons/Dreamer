@@ -8,16 +8,8 @@ from utils.logger import log
 
 from networks import RewardNetwork, DiscountNetwork, ObservationEncoder, ObservationDecoder
 from models.RSSM import RSSM
+from params.py import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS
 
-MODEL_LR = 6e-4
-GAMMA = 0.99
-MAX_GRAD_NORM = 100
-FROM_PIXELS = False
-
-STOCH_DIM = 32
-DETER_DIM = 256
-EMBED_DIM = 256
-MAX_KL = 3.
 
 class WorldModel():
     def __init__(self, state_dim, action_dim, device):
