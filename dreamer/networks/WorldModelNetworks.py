@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 
 from models.MLP import MLP
 
@@ -24,6 +25,24 @@ class DiscountNetwork(MLP):
     def predict_logit(self, x):
         x = super().forward(x)
         return x.squeeze(len(x.shape) - 1)
+
+    @staticmethod # TODO move to config factory method?
+    def create(state_dim, predict_done, gamma):
+        if predict_done:
+            return DiscountNetwork(state_dim)
+        else:
+            return StubDiscountNetwork(gamma)
+
+
+class StubDiscountNetwork(nn.Module):
+    def __init__(self, gamma):
+        super(StubDiscountNetwork, self).__init__()
+        self.gamma = gamma
+        self.scale = math.log(gamma) - math.log(1 - gamma)
+
+    def predict_log(self, x):
+        return torch.ones(x.shape[:-1]) * self.scale
+
 
 
 """ flattens several last dims """

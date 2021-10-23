@@ -8,7 +8,8 @@ from utils.logger import log
 
 from networks import RewardNetwork, DiscountNetwork, ObservationEncoder, ObservationDecoder
 from models.RSSM import RSSM
-from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS
+from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
+    MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE
 
 
 class WorldModel():
@@ -18,7 +19,7 @@ class WorldModel():
         self.device = device
 
         self.reward_model = RewardNetwork(STOCH_DIM + DETER_DIM).to(device)
-        self.discount_model = DiscountNetwork(STOCH_DIM + DETER_DIM).to(device)
+        self.discount_model = DiscountNetwork.create(STOCH_DIM + DETER_DIM, PREDICT_DONE, GAMMA).to(device)
         self.transition_model = RSSM(STOCH_DIM, DETER_DIM, EMBED_DIM, self.action_dim).to(device)
         self.encoder = ObservationEncoder(self.state_dim, EMBED_DIM, from_pixels=FROM_PIXELS).to(device)
         self.decoder = ObservationDecoder(STOCH_DIM + DETER_DIM, self.state_dim, from_pixels=FROM_PIXELS).to(device)
@@ -42,12 +43,14 @@ class WorldModel():
 
         predicted_obs = self.decoder(hidden)
         predicted_reward = self.reward_model(hidden[1:])
-        predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
 
         div = _kl_div(post, prior).clip(max=MAX_KL)
         obs_loss = F.mse_loss(obs, predicted_obs) + div
         reward_loss = F.mse_loss(reward, predicted_reward)
-        discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
+
+        if PREDICT_DONE:
+            predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
+            discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
         self.optimizer.zero_grad()
         (obs_loss + reward_loss + discount_loss).backward()
