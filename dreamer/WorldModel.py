@@ -44,7 +44,7 @@ class WorldModel():
         predicted_obs = self.decoder(hidden)
         predicted_reward = self.reward_model(hidden[1:])
 
-        div_loss = _kl_div(post, prior).clip(max=MAX_KL).mean()
+        div_loss = _kl_div(post, prior).clip(max=MAX_KL)[1:].mean()
         obs_loss = F.mse_loss(obs, predicted_obs, reduction="none").sum(dim=(2, 3, 4) if FROM_PIXELS else 2).mean()
         reward_loss = F.mse_loss(reward, predicted_reward)
 

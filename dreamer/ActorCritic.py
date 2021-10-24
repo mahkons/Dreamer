@@ -50,6 +50,8 @@ class ActorCritic():
     def _compute_value_estimates(self, values, reward, discount):
         assert(len(values.shape) == 2)
 
+        # TODO saving to directly to buffer instead of stacking can save a lot of time on gpu?
+        # will such inplace operation be differentiable?
         values_lr = [None] * values.shape[0]
         values_lr[-1] = values[-1]
         for i in reversed(range(reward.shape[0])):
