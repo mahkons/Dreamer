@@ -44,8 +44,8 @@ class WorldModel():
         predicted_obs = self.decoder(hidden)
         predicted_reward = self.reward_model(hidden[1:])
 
-        div = _kl_div(post, prior).clip(max=MAX_KL)
-        obs_loss = F.mse_loss(obs, predicted_obs) + div
+        div_loss = _kl_div(post, prior).clip(max=MAX_KL).mean()
+        obs_loss = F.mse_loss(obs, predicted_obs, reduction="none").sum(dim=(2, 3, 4) if FROM_PIXELS else 2).mean()
         reward_loss = F.mse_loss(reward, predicted_reward)
 
         discount_loss = torch.tensor(0.)
@@ -59,8 +59,8 @@ class WorldModel():
         self.optimizer.step()
 
         log().add_plot_point("model_loss", [
-            obs_loss.item() - div.item(),
-            div.item(),
+            obs_loss.item(),
+            div_loss.item(),
             reward_loss.item(),
             discount_loss.item()
         ])
@@ -91,5 +91,5 @@ def _kl_div(p, q):
     d = plogs.shape[2]
     div = (qlogs.sum(dim=2) - plogs.sum(dim=2)) + 0.5 * (-d + torch.exp(2 * (plogs - qlogs)).sum(dim=2) 
             + torch.einsum("lbi,lbi->lb", (pmu - qmu) * torch.exp(-2 * qlogs), pmu - qmu) )
-    return torch.mean(div) / d
+    return div
 
