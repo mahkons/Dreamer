@@ -50,11 +50,12 @@ class ActorCritic():
     def _compute_value_estimates(self, values, reward, discount):
         assert(len(values.shape) == 2)
 
-        values_lr = values.clone()
+        values_lr = [None] * values.shape[0]
+        values_lr[-1] = values[-1]
         for i in reversed(range(reward.shape[0])):
             values_lr[i] = reward[i] + discount[i] * \
                     ((1 - LAMBDA) * values[i + 1] + LAMBDA * values_lr[i + 1])
-        return values_lr
+        return torch.stack(values_lr)
 
 
         
