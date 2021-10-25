@@ -54,7 +54,7 @@ class WorldModel():
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
         self.optimizer.zero_grad()
-        (obs_loss + reward_loss + discount_loss).backward()
+        (obs_loss + div_loss + reward_loss + discount_loss).backward()
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
 
