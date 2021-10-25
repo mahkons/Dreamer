@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import itertools
 
-from params import RSSM_HIDDEN_DIM
+from params import RSSM_HIDDEN_DIM, MIN_STD
 
 class RSSM(nn.Module):
     def __init__(self, stoch_dim, deter_dim, embed_dim, action_dim):
@@ -24,7 +25,7 @@ class RSSM(nn.Module):
             nn.GELU(),
         )
         self.imagine_mu = nn.Linear(RSSM_HIDDEN_DIM, self.stoch_dim)
-        self.imagine_logs = nn.Linear(RSSM_HIDDEN_DIM, self.stoch_dim)
+        self.imagine_std = nn.Linear(RSSM_HIDDEN_DIM, self.stoch_dim)
 
 
         self.obs_encode = nn.Sequential(
@@ -32,7 +33,7 @@ class RSSM(nn.Module):
             nn.GELU(),
         )
         self.obs_mu = nn.Linear(RSSM_HIDDEN_DIM, self.stoch_dim)
-        self.obs_logs = nn.Linear(RSSM_HIDDEN_DIM, self.stoch_dim)
+        self.obs_std = nn.Linear(RSSM_HIDDEN_DIM, self.stoch_dim)
 
         self.device = torch.device("cpu")
 
@@ -54,44 +55,46 @@ class RSSM(nn.Module):
         hidden, prev_action = self.initial_state(batch_size)
 
         hidden_list = [None]*seq_len
-        prior_mu, prior_logs, post_mu, post_logs = \
+        prior_mu, prior_std, post_mu, post_std = \
                 [None]*seq_len, [None]*seq_len, [None]*seq_len, [None]*seq_len
 
         for i, (embed, action) in enumerate(zip(embed_seq, itertools.chain([prev_action], action_seq))):
-            hidden, (prior_mu[i], prior_logs[i]), (post_mu[i], post_logs[i]) = self.obs_step(action, hidden, embed)
+            hidden, (prior_mu[i], prior_std[i]), (post_mu[i], post_std[i]) = self.obs_step(action, hidden, embed)
             hidden_list[i] = torch.cat(hidden, dim=-1)
 
         return torch.stack(hidden_list), \
-                (torch.stack(prior_mu), torch.stack(prior_logs)), \
-                (torch.stack(post_mu), torch.stack(post_logs))
+                (torch.stack(prior_mu), torch.stack(prior_std)), \
+                (torch.stack(post_mu), torch.stack(post_std))
 
     def obs_step(self, prev_action, hidden, embed):
         deter = self._deterministic_step(prev_action, hidden)
-        prior_mu, prior_logs = self._get_prior(deter)
-        mu, logs = self._get_post(deter, embed)
-        stoch = self._reparametrization_trick(mu, logs)
-        return (stoch, deter), (prior_mu, prior_logs), (mu, logs)
+        prior_mu, prior_std = self._get_prior(deter)
+        mu, std = self._get_post(deter, embed)
+        stoch = self._reparametrization_trick(mu, std)
+        return (stoch, deter), (prior_mu, prior_std), (mu, std)
         
     def imagine_step(self, prev_action, hidden):
         deter = self._deterministic_step(prev_action, hidden)
-        mu, logs = self._get_prior(deter)
-        stoch = self._reparametrization_trick(mu, logs)
-        return (stoch, deter), (mu, logs)
+        mu, std = self._get_prior(deter)
+        stoch = self._reparametrization_trick(mu, std)
+        return (stoch, deter), (mu, std)
 
 
     def _get_post(self, deter, embed):
         x = self.obs_encode(torch.cat([deter, embed], dim=-1))
-        mu, logs = self.obs_mu(x), self.obs_logs(x)
-        return mu, logs
+        mu, std = self.obs_mu(x), self.obs_std(x)
+        std = F.softplus(std) + MIN_STD
+        return mu, std
 
     def _get_prior(self, deter):
         x = self.imagine_encode(deter)
-        mu, logs = self.imagine_mu(x), self.imagine_logs(x)
-        return mu, logs
+        mu, std = self.imagine_mu(x), self.imagine_std(x)
+        std = F.softplus(std) + MIN_STD
+        return mu, std
 
-    def _reparametrization_trick(self, mu, logs):
+    def _reparametrization_trick(self, mu, std):
         eps = torch.randn_like(mu)
-        return mu + torch.exp(logs) * eps
+        return mu + std * eps
 
     def _deterministic_step(self, prev_action, hidden):
         stoch, deter = hidden

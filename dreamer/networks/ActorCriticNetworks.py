@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 from models.MLP import MLP
+from params import MIN_STD
 
 class ActorNetwork(nn.Module):
     def __init__(self, state_dim, action_dim):
@@ -25,9 +26,10 @@ class ActorNetwork(nn.Module):
 
         x = self.model(state)
         mu, logs = self.fcmu(x), self.fclogs(x)
+        std = 2 * torch.sigmoid(logs) + MIN_STD
 
         eps = torch.randn_like(mu)
-        action = torch.tanh(mu) + torch.exp(logs) * eps
+        action = torch.tanh(mu) + std * eps
         return action.clip_(-1., 1.)
 
     def _test_action(self, state):
