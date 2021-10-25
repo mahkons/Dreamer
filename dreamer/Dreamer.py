@@ -22,10 +22,9 @@ class Dreamer():
             prev_action = torch.as_tensor(prev_action, dtype=torch.float, device=self.device).unsqueeze(0)
             embed = self.world_model.encoder(obs)
             next_hidden, _, _ = self.world_model.transition_model.obs_step(prev_action, hidden, embed)
-            action, mu = self.agent.act(torch.cat(next_hidden, dim=-1), isTrain=False)
+            action = self.agent.act(torch.cat(next_hidden, dim=-1), isTrain=False)
             
-            mu = mu[0].cpu()
-            action = torch.tanh(mu) + torch.randn_like(mu) * math.sqrt(0.3) # superb exploration
+            action = action + torch.randn_like(action) * math.sqrt(0.3) # superb exploration
             return action.clip_(-1, 1), next_hidden
 
     def optimize(self, batch_seq):

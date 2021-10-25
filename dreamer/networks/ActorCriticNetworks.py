@@ -27,13 +27,13 @@ class ActorNetwork(nn.Module):
         mu, logs = self.fcmu(x), self.fclogs(x)
 
         eps = torch.randn_like(mu)
-        action = torch.tanh(mu + torch.exp(logs) * eps)
-        return action
+        action = torch.tanh(mu) + torch.exp(logs) * eps
+        return action.clip_(-1., 1.)
 
     def _test_action(self, state):
         x = self.model(state)
         mu = self.fcmu(x)
-        return torch.tanh(mu), mu
+        return torch.tanh(mu)
         
 
 
