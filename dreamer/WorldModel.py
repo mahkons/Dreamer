@@ -88,7 +88,7 @@ class WorldModel():
 def _kl_div(p, q):
     pmu, pstd = p
     qmu, qstd = q
-    plogs, qlogs = torch.log(plogs), torch.log(qlogs)
+    plogs, qlogs = torch.log(pstd), torch.log(qstd)
 
     d = plogs.shape[2]
     div = (qlogs.sum(dim=2) - plogs.sum(dim=2)) + 0.5 * (-d + torch.exp(2 * (plogs - qlogs)).sum(dim=2) 
