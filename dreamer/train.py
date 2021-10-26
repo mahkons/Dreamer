@@ -44,7 +44,7 @@ def train(env, agent):
         memory.push(episode)
         step_count += len(episode) * ACTION_REPEAT
         episode_count += 1
-        log().add_plot_point("eval_reward", [episode_count, step_count, episode.rewards.sum()])
+        log().add_plot_point("eval_reward", [episode_count, step_count, episode.rewards.sum().item()])
         print(episode.rewards.sum())
 
         if memory.num_steps() >= INIT_STEPS:
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
 
     env = ActionRepeatWrapper(
-        DMControlWrapper("cartpole", "balance", from_pixels=FROM_PIXELS, random_seed=RANDOM_SEED),
+        DMControlWrapper("walker", "walk", from_pixels=FROM_PIXELS, random_seed=RANDOM_SEED),
         action_repeat=ACTION_REPEAT
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
