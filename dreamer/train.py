@@ -55,14 +55,22 @@ def train(env, agent):
         log().save_logs() # TODO logger context?
 
 
-if __name__ == "__main__":
+
+def launch_single(logdir, env_domain, env_task_name):
     init_logger("logdir", "tmplol")
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
 
     env = ActionRepeatWrapper(
-        DMControlWrapper("walker", "walk", from_pixels=FROM_PIXELS, random_seed=RANDOM_SEED),
+        DMControlWrapper(env_domain, env_task_name, from_pixels=FROM_PIXELS, random_seed=RANDOM_SEED),
         action_repeat=ACTION_REPEAT
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
     train(env, agent)
 
+
+def launch_suite():
+    pass
+
+
+if __name__ == "__main__":
+    launch_single("logdir", "quadruped", "walk")
