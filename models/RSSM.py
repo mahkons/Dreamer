@@ -54,17 +54,16 @@ class RSSM(nn.Module):
         seq_len, batch_size, embed_size = embed_seq.shape
         hidden, prev_action = self.initial_state(batch_size)
 
-        hidden_list = [None]*seq_len
-        prior_mu, prior_std, post_mu, post_std = \
-                [None]*seq_len, [None]*seq_len, [None]*seq_len, [None]*seq_len
+        hidden_list = torch.empty(seq_len, batch_size, self.stoch_dim + self.deter_dim, dtype=torch.float, device=self.device)
+        prior_mu = torch.empty(seq_len, batch_size, self.stoch_dim, dtype=torch.float, device=self.device)
+        prior_std = torch.empty_like(prior_mu)
+        post_mu, post_std = torch.empty_like(prior_mu), torch.empty_like(prior_std)
 
         for i, (embed, action) in enumerate(zip(embed_seq, itertools.chain([prev_action], action_seq))):
             hidden, (prior_mu[i], prior_std[i]), (post_mu[i], post_std[i]) = self.obs_step(action, hidden, embed)
             hidden_list[i] = torch.cat(hidden, dim=-1)
 
-        return torch.stack(hidden_list), \
-                (torch.stack(prior_mu), torch.stack(prior_std)), \
-                (torch.stack(post_mu), torch.stack(post_std))
+        return hidden_list, (prior_mu, prior_std), (post_mu, post_std)
 
     def obs_step(self, prev_action, hidden, embed):
         deter = self._deterministic_step(prev_action, hidden)
