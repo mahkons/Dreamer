@@ -1,2 +1,2 @@
 from .ActionRepeatWrapper import ActionRepeatWrapper
-from .DMControlWrapper import DMControlWrapper
+from .DMControlWrapper import DMControlWrapper, dm_suite_benchmark

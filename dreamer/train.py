@@ -5,8 +5,10 @@ import itertools
 import math
 import torch
 import numpy as np
+import multiprocessing
+import os
 
-from envs import DMControlWrapper, ActionRepeatWrapper
+from envs import DMControlWrapper, ActionRepeatWrapper, dm_suite_benchmark
 from utils.logger import init_logger, log
 from utils.random import init_random_seeds
 
@@ -45,7 +47,6 @@ def train(env, agent):
         step_count += len(episode) * ACTION_REPEAT
         episode_count += 1
         log().add_plot_point("eval_reward", [episode_count, step_count, episode.rewards.sum().item()])
-        print(episode.rewards.sum())
 
         if memory.num_steps() >= INIT_STEPS:
             for i in range(TRAIN_ITERS_PER_EPISODE):
@@ -56,8 +57,8 @@ def train(env, agent):
 
 
 
-def launch_single(logdir, env_domain, env_task_name):
-    init_logger("logdir", "tmplol")
+def launch_single(logname, env_domain, env_task_name):
+    init_logger("logdir", logname)
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
 
     env = ActionRepeatWrapper(
@@ -68,9 +69,19 @@ def launch_single(logdir, env_domain, env_task_name):
     train(env, agent)
 
 
-def launch_suite():
-    pass
+def launch_single_pool(args):
+    launch_single(*args)
+
+def launch_suite(suite_logname):
+    benchmark = dm_suite_benchmark()
+    assert(len(benchmark) == 20)
+    os.mkdir(os.path.join("logdir", suite_logname))
+
+    launch_args = list(map(lambda it: (os.path.join(suite_logname, it[0] + "_" + it[1]), it[0], it[1]), benchmark))
+    with multiprocessing.Pool(20) as p:
+        p.map(launch_single_pool, launch_args)
 
 
 if __name__ == "__main__":
-    launch_single("logdir", "quadruped", "walk")
+    #  launch_single("logdir", "quadruped", "walk")
+    launch_suite("tmplol_suite")
