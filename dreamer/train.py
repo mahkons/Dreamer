@@ -69,5 +69,18 @@ def launch_single(logname, env_domain, env_task_name):
     train(env, agent)
 
 
+def launch_single_pool(args):
+    launch_single(*args)
+
+def launch_set(suite_logname):
+    os.mkdir(os.path.join("logdir", suite_logname))
+    env_set = [("walker", "walk"), ("cartpole", "swingup")]
+
+    launch_args = list(map(lambda it: (os.path.join(suite_logname, it[0] + "_" + it[1]), it[0], it[1]), env_set))
+    with multiprocessing.Pool(len(env_set)) as p:
+        p.map(launch_single_pool, launch_args)
+
+
 if __name__ == "__main__":
-    launch_single("tmplol", "quadruped", "walk")
+    #  launch_single("logdir", "quadruped", "walk")
+    launch_set("tmplol_suite")
