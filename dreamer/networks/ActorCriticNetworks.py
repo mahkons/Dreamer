@@ -13,6 +13,8 @@ class ActorNetwork(nn.Module):
             nn.GELU(),
             nn.Linear(400, 400),
             nn.GELU(),
+            nn.Linear(400, 400),
+            nn.GELU(),
             nn.Linear(400, 300),
             nn.GELU(),
         )
