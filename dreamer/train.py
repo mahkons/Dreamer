@@ -80,7 +80,6 @@ def launch_set(suite_logname):
     with multiprocessing.Pool(len(env_set)) as p:
         p.map(launch_single_pool, launch_args)
 
-
 if __name__ == "__main__":
-    #  launch_single("logdir", "quadruped", "walk")
-    launch_set("tmplol_suite")
+    launch_single("tmp", "quadruped", "walk")
+    #  launch_set("tmplol_suite")

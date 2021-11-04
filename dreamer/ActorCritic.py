@@ -29,16 +29,18 @@ class ActorCritic():
         """
 
         state, action, reward, discount = env.imagine(self, init_state, HORIZON)
+        seq_discount = torch.cat([torch.ones_like(discount[0:1]), torch.cumprod(discount, dim=0)], dim=0)
+
         values = self.critic(state)
         values_lr = self._compute_value_estimates(values, reward, discount)
 
-        actor_loss = -values_lr.mean()
+        actor_loss = -(values_lr * seq_discount).mean()
         self.actor_optimizer.zero_grad()
         actor_loss.backward(retain_graph=True)
         nn.utils.clip_grad_norm_(self.actor.parameters(), MAX_GRAD_NORM)
         self.actor_optimizer.step()
 
-        critic_loss = F.mse_loss(values[:-1], values_lr[:-1].detach())
+        critic_loss = (F.mse_loss(values, values_lr.detach(), reduction="none") * seq_discount).mean()
         self.critic_optimizer.zero_grad()
         critic_loss.backward(inputs=list(self.critic.parameters()))
         nn.utils.clip_grad_norm_(self.critic.parameters(), MAX_GRAD_NORM)
