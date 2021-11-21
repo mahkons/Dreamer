@@ -14,6 +14,7 @@ REC_L2_REG = 1e-5
 MAX_GRAD_NORM = 100.
 MAX_KL = 100.
 MIN_STD = 0.1
+TAU = 0.001 # set to 1 for no target
 
 GAMMA = 0.99
 LAMBDA = 0.95

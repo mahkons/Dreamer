@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import itertools
+from copy import deepcopy
 
 from utils.logger import log
 
@@ -11,7 +12,7 @@ from models.RSSM import RSSM
 from models.MAF import MAF
 from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE, \
-    FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF, REC_L2_REG
+    FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF, REC_L2_REG, TAU
 
 
 class WorldModel():
@@ -25,9 +26,12 @@ class WorldModel():
         self.encoder = ObservationEncoder(self.state_dim, EMBED_DIM, from_pixels=FROM_PIXELS).to(device)
         self.decoder = ObservationDecoder(EMBED_DIM, self.state_dim, from_pixels=FROM_PIXELS).to(device)
 
-
+        
+        # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
         self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
+        self.target_transition_model = deepcopy(self.transition_model)
+        self.target_flow_model = deepcopy(self.flow_model)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
@@ -37,6 +41,7 @@ class WorldModel():
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
+        self.target_flow_model
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR)
 
@@ -68,6 +73,7 @@ class WorldModel():
         (rec_loss + flow_loss * FLOW_LOSS_COEFF + reward_loss + discount_loss + l2_reg_loss).backward()
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
+        self.__soft_update()
 
         log().add_plot_point("model_loss", [
             rec_loss.item(),
@@ -76,6 +82,7 @@ class WorldModel():
             discount_loss.item(),
             l2_reg_loss.item()
         ])
+
         return hidden
 
 
@@ -106,8 +113,8 @@ class WorldModel():
         state_list, reward_list, discount_list, action_list = [state], [], [], []
         for _ in range(horizon):
             action = agent.act(state, isTrain=True)
-            noise = self.flow_model.prior.sample([batch_size, EMBED_DIM])
-            state = self.transition_model(torch.cat([noise, action], dim=-1), state)
+            noise = self.target_flow_model.prior.sample([batch_size, EMBED_DIM])
+            state = self.target_transition_model(torch.cat([noise, action], dim=-1), state)
 
             state_list.append(state)
             action_list.append(action)
@@ -123,6 +130,14 @@ class WorldModel():
         prev_action = torch.zeros((batch_size, self.action_dim), dtype=torch.float, device=self.device)
         return hidden, prev_action
 
+    def __soft_update(self):
+        _soft_update(self.target_transition_model, self.transition_model, TAU)
+        _soft_update(self.target_flow_model, self.flow_model, TAU)
+
+
+def _soft_update(target, source, tau):
+    for tp, sp in zip(target.parameters(), source.parameters()):
+        tp.data.copy_((1 - tau) * tp.data + tau * sp.data)
 
 
 def _kl_div(p, q):
