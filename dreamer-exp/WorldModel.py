@@ -8,9 +8,10 @@ from utils.logger import log
 
 from networks import RewardNetwork, DiscountNetwork, ObservationEncoder, ObservationDecoder
 from models.RSSM import RSSM
+from models.MAF import MAF
 from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
-    MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE
-
+    MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE, \
+    FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF
 
 class WorldModel():
     def __init__(self, state_dim, action_dim, device):
@@ -18,34 +19,42 @@ class WorldModel():
         self.action_dim = action_dim
         self.device = device
 
-        self.reward_model = RewardNetwork(STOCH_DIM + DETER_DIM).to(device)
-        self.discount_model = DiscountNetwork.create(STOCH_DIM + DETER_DIM, PREDICT_DONE, GAMMA).to(device)
-        self.transition_model = RSSM(STOCH_DIM, DETER_DIM, EMBED_DIM, self.action_dim).to(device)
+        self.reward_model = RewardNetwork(FLOW_GRU_DIM).to(device)
+        self.discount_model = DiscountNetwork.create(FLOW_GRU_DIM, PREDICT_DONE, GAMMA).to(device)
         self.encoder = ObservationEncoder(self.state_dim, EMBED_DIM, from_pixels=FROM_PIXELS).to(device)
-        self.decoder = ObservationDecoder(STOCH_DIM + DETER_DIM, self.state_dim, from_pixels=FROM_PIXELS).to(device)
+        self.decoder = ObservationDecoder(EMBED_DIM, self.state_dim, from_pixels=FROM_PIXELS).to(device)
+
+
+        self.transition_model = nn.GRUCell(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
+        self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
             self.discount_model.parameters(),
             self.transition_model.parameters(),
+            self.flow_model.parameters(),
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR)
 
-        log().add_plot("model_loss", ["reconstruction_loss", "kl_divergence_loss", "reward_loss", "discount_loss"])
+        log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss"])
 
 
     def optimize(self, obs, action, reward, done):
+        batch_size = action.shape[1]
         embed = self.encoder(obs)
-        hidden, prior, post = self.transition_model.observe(embed, action)
+        reconstruction = self.decoder(embed)
+        rec_loss = F.mse_loss(obs, reconstruction)
+        embed = embed.detach()
 
-        predicted_obs = self.decoder(hidden)
-        predicted_reward = self.reward_model(hidden[1:])
-
-        div_loss = _kl_div(post, prior).clip(max=MAX_KL)[1:].mean()
-        obs_loss = F.mse_loss(obs, predicted_obs, reduction="none").sum(dim=(2, 3, 4) if FROM_PIXELS else 2).mean()
+        init_hidden, prev_action = self.initial_state(batch_size)
+        action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
+        hidden = self.observe(embed, action, init_hidden)
+        flow_loss = self.flow_model.calc_loss(embed, torch.cat([hidden[:-1], action], dim=-1)) 
+        
+        predicted_reward = self.reward_model(hidden[2:])
         reward_loss = F.mse_loss(reward, predicted_reward)
 
         discount_loss = torch.tensor(0.)
@@ -54,25 +63,45 @@ class WorldModel():
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
         self.optimizer.zero_grad()
-        (obs_loss + div_loss + reward_loss + discount_loss).backward()
+        (rec_loss + flow_loss * FLOW_LOSS_COEFF + reward_loss + discount_loss).backward()
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
 
         log().add_plot_point("model_loss", [
-            obs_loss.item(),
-            div_loss.item(),
+            rec_loss.item(),
+            flow_loss.item(),
             reward_loss.item(),
             discount_loss.item()
         ])
         return hidden
 
+
+    def observe(self, embed_seq, action_seq, init_hidden):
+        seq_len, batch_size, embed_size = embed_seq.shape
+
+        hidden = init_hidden
+        hidden_list = torch.empty(seq_len + 1, batch_size, FLOW_GRU_DIM, dtype=torch.float, device=self.device)
+        hidden_list[0] = hidden
+
+        for i, (embed, action) in enumerate(zip(embed_seq, action_seq)):
+            hidden = self.obs_step(embed, action, hidden)
+            hidden_list[i + 1] = hidden
+
+        return hidden_list
+
+    def obs_step(self, embed, action, hidden):
+        embed_flow, _ = self.flow_model.forward_flow(embed, torch.cat([hidden, action], dim=-1))
+        hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1), hidden)
+        return hidden
+        
         
     def imagine(self, agent, state, horizon):
+        batch_size = state.shape[0]
         state_list, reward_list, discount_list, action_list = [state], [], [], []
         for _ in range(horizon):
             action = agent.act(state, isTrain=True)
-            state, _ = self.transition_model.imagine_step(action, torch.split(state.detach(), [STOCH_DIM, DETER_DIM], dim=1))
-            state = torch.cat(state, dim=-1)
+            noise = self.flow_model.prior.sample([batch_size, EMBED_DIM])
+            state = self.transition_model(torch.cat([noise, action], dim=-1), state)
 
             state_list.append(state)
             action_list.append(action)
@@ -82,6 +111,11 @@ class WorldModel():
         reward = self.reward_model(state[1:])
         discount = torch.sigmoid(self.discount_model.predict_logit(state[1:]))
         return state, action, reward, discount
+
+    def initial_state(self, batch_size):
+        hidden = torch.zeros((batch_size, FLOW_GRU_DIM), dtype=torch.float, device=self.device)
+        prev_action = torch.zeros((batch_size, self.action_dim), dtype=torch.float, device=self.device)
+        return hidden, prev_action
 
 
 

@@ -24,7 +24,7 @@ device = torch.device("cuda")
 def sample_episode(env, agent):
     obs = env.reset()
     episode = Episode(obs)
-    hidden, action = agent.world_model.transition_model.initial_state(batch_size=1) 
+    hidden, action = agent.world_model.initial_state(batch_size=1) 
     action.squeeze_(0)
     for steps in itertools.count(1):
         action, hidden = agent(obs, hidden, action)
@@ -81,5 +81,5 @@ def launch_set(suite_logname):
         p.map(launch_single_pool, launch_args)
 
 if __name__ == "__main__":
-    launch_single("tmp", "quadruped", "walk")
+    launch_single("tmp", "cartpole", "balance")
     #  launch_set("tmplol_suite")

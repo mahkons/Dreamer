@@ -15,7 +15,9 @@ class MADE(ConditionalFlow):
         order_out = torch.arange(2 * dim) % dim
 
         self.model = nn.Sequential(
-            MaskedLinear(dim + condition_dim, hidden_dim, order_hidden[:, None] >= order_input[None]),
+            MaskedLinear(dim + condition_dim, hidden_dim, 
+                torch.cat([order_hidden[:, None] >= order_input[None],
+                    torch.ones((hidden_dim, condition_dim), dtype=torch.bool, device=self.device)], dim=1)),
             nn.ELU(),
             MaskedLinear(hidden_dim, hidden_dim, order_hidden[:, None] >= order_hidden[None]),
             nn.ELU(),

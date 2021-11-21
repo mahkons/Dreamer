@@ -3,11 +3,11 @@ import torch.nn as nn
 
 class ConditionalFlow(nn.Module):
     def __init__(self):
-        super(Flow, self).__init__()
+        super(ConditionalFlow, self).__init__()
         self.device = torch.device("cpu")
 
     def to(self, device):
-        super(Flow, self).to(device)
+        super(ConditionalFlow, self).to(device)
         self.device = device
 
     def forward_flow(self, x, condition):
@@ -29,7 +29,7 @@ class SequentialConditionalFlow(ConditionalFlow):
 
         self.flow_modules = list(modules)
         for idx, module in enumerate(self.flow_modules):
-            assert(isinstance(module, Flow))
+            assert(isinstance(module, ConditionalFlow))
             self.add_module(str(idx), module)
 
     def forward_flow(self, x, condition):
