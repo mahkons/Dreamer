@@ -53,8 +53,8 @@ class WorldModel():
 
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
-        hidden = self.observe(embed, action, init_hidden)
-        flow_loss = self.flow_model.calc_loss(embed, torch.cat([hidden[:-1], action], dim=-1)) 
+        hidden, flow_list, jac_list = self.observe(embed, action, init_hidden)
+        flow_loss = -(self.flow_model.prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
         
         predicted_reward = self.reward_model(hidden[2:])
         reward_loss = F.mse_loss(reward, predicted_reward)
@@ -84,18 +84,21 @@ class WorldModel():
 
         hidden = init_hidden
         hidden_list = torch.empty(seq_len + 1, batch_size, FLOW_GRU_DIM, dtype=torch.float, device=self.device)
+        flow_list = torch.empty(seq_len, batch_size, EMBED_DIM, dtype=torch.float, device=self.device)
+        jac_list = torch.empty(seq_len, batch_size, dtype=torch.float, device=self.device)
         hidden_list[0] = hidden
 
         for i, (embed, action) in enumerate(zip(embed_seq, action_seq)):
-            hidden = self.obs_step(embed, action, hidden)
+            hidden, embed_flow, logjac = self.obs_step(embed, action, hidden)
             hidden_list[i + 1] = hidden
+            flow_list[i], jac_list[i] = embed_flow, logjac
 
-        return hidden_list
+        return hidden_list, flow_list, jac_list
 
     def obs_step(self, embed, action, hidden):
-        embed_flow, _ = self.flow_model.forward_flow(embed, torch.cat([hidden, action], dim=-1))
+        embed_flow, logjac = self.flow_model.forward_flow(embed, torch.cat([hidden, action], dim=-1))
         hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1), hidden)
-        return hidden
+        return hidden, embed_flow, logjac
         
         
     def imagine(self, agent, state, horizon):

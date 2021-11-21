@@ -29,24 +29,21 @@ class MAF(nn.Module):
 
 
     def calc_loss(self, inputs, conditions):
-        inputs = inputs.reshape(-1, self.flow_dim)
-        conditions = conditions.reshape(-1, self.condition_dim)
-
-        if not self.initialized:
-            with torch.no_grad():
-                self.model.data_init(inputs, conditions)
-            self.initialized = True
-        loss = -self._get_log_prob(inputs, conditions).mean()
-
-        return loss
+        raise NotImplementedError
 
     def forward_flow(self, inputs, conditions):
         in_shape = inputs.shape
         inputs = inputs.reshape(-1, self.flow_dim)
         conditions = conditions.reshape(-1, self.condition_dim)
+
+        self.initialized = True # no data init 
+        if not self.initialized:
+            with torch.no_grad():
+                self.model.data_init(inputs, conditions)
+            self.initialized = True
         
         z, logjac = self.model.forward_flow(inputs, conditions)
-        return z.reshape(in_shape), logjac
+        return z.reshape(in_shape), logjac.reshape(in_shape[:-1])
 
     def get_log_prob(self, inputs, conditions):
         return self._get_log_prob(inputs, conditions)

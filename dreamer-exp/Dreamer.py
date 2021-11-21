@@ -21,7 +21,7 @@ class Dreamer():
             obs = torch.as_tensor(obs, dtype=torch.float, device=self.device).unsqueeze(0)
             prev_action = torch.as_tensor(prev_action, dtype=torch.float, device=self.device).unsqueeze(0)
             embed = self.world_model.encoder(obs)
-            next_hidden = self.world_model.obs_step(embed, prev_action, hidden)
+            next_hidden, _, _ = self.world_model.obs_step(embed, prev_action, hidden)
             action = self.agent.act(next_hidden, isTrain=False).squeeze(0)
             
             action = action + torch.randn_like(action) * math.sqrt(0.3) # superb exploration
