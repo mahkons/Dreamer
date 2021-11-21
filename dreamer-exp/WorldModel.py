@@ -48,7 +48,7 @@ class WorldModel():
         embed = self.encoder(obs)
         reconstruction = self.decoder(embed)
         rec_loss = F.mse_loss(obs, reconstruction)
-        l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=(1, 2)).mean(dim=0)
+        l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
         embed = embed.detach()
 
         init_hidden, prev_action = self.initial_state(batch_size)
