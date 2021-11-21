@@ -30,6 +30,7 @@ class WorldModel():
         # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
         self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
+        # should use target encoder as well then
         self.target_transition_model = deepcopy(self.transition_model)
         self.target_flow_model = deepcopy(self.flow_model)
 
