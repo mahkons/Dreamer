@@ -11,7 +11,7 @@ ACTOR_LR = 8e-5
 CRITIC_LR = 8e-5
 REC_L2_REG = 1e-5
 
-MAX_GRAD_NORM = 100.
+MAX_GRAD_NORM = 10.
 MAX_KL = 100.
 MIN_STD = 0.1
 TAU = 1. # set to 1 for no target 
