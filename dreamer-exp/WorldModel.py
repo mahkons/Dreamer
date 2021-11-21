@@ -11,7 +11,7 @@ from models.RSSM import RSSM
 from models.MAF import MAF
 from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE, \
-    FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF
+    FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF, REC_L2_REG
 
 class WorldModel():
     def __init__(self, state_dim, action_dim, device):
@@ -26,7 +26,7 @@ class WorldModel():
 
 
         self.transition_model = nn.GRUCell(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
-        self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device)
+        self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
@@ -39,7 +39,7 @@ class WorldModel():
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR)
 
-        log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss"])
+        log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
 
 
     def optimize(self, obs, action, reward, done):
@@ -47,6 +47,7 @@ class WorldModel():
         embed = self.encoder(obs)
         reconstruction = self.decoder(embed)
         rec_loss = F.mse_loss(obs, reconstruction)
+        l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=(1, 2)).mean(dim=0)
         embed = embed.detach()
 
         init_hidden, prev_action = self.initial_state(batch_size)
@@ -63,7 +64,7 @@ class WorldModel():
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
         self.optimizer.zero_grad()
-        (rec_loss + flow_loss * FLOW_LOSS_COEFF + reward_loss + discount_loss).backward()
+        (rec_loss + flow_loss * FLOW_LOSS_COEFF + reward_loss + discount_loss + l2_reg_loss).backward()
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
 
@@ -71,7 +72,8 @@ class WorldModel():
             rec_loss.item(),
             flow_loss.item(),
             reward_loss.item(),
-            discount_loss.item()
+            discount_loss.item(),
+            l2_reg_loss.item()
         ])
         return hidden
 
