@@ -53,7 +53,7 @@ class WorldModel():
         batch_size = action.shape[1]
         embed = self.encoder(obs)
         reconstruction = self.decoder(embed)
-        rec_loss = F.mse_loss(obs, reconstruction)
+        rec_loss = ((obs - reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
         l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
         #  embed = embed.detach() # detach or no detach
 
