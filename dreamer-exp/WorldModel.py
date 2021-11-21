@@ -13,6 +13,7 @@ from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE, \
     FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF, REC_L2_REG
 
+
 class WorldModel():
     def __init__(self, state_dim, action_dim, device):
         self.state_dim = state_dim
@@ -25,7 +26,7 @@ class WorldModel():
         self.decoder = ObservationDecoder(EMBED_DIM, self.state_dim, from_pixels=FROM_PIXELS).to(device)
 
 
-        self.transition_model = nn.GRUCell(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
+        self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
         self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
 
         self.parameters = itertools.chain(
@@ -130,4 +131,25 @@ def _kl_div(p, q):
     div = (qlogs.sum(dim=2) - plogs.sum(dim=2)) + 0.5 * (-d + torch.exp(2 * (plogs - qlogs)).sum(dim=2) 
             + torch.einsum("lbi,lbi->lb", (pmu - qmu) * torch.exp(-2 * qlogs), pmu - qmu) )
     return div
+
+
+
+# simple
+class TransitionModel(nn.Module):
+    def __init__(self, input_sz, hidden_sz):
+        super(TransitionModel, self).__init__()
+        self.before_rnn = nn.Sequential(
+            nn.Linear(input_sz, hidden_sz),
+            nn.ELU(),
+            nn.Linear(hidden_sz, hidden_sz),
+            nn.ELU()
+        )
+        self.rnn = nn.GRUCell(hidden_sz, hidden_sz)
+
+    def forward(self, input, hidden):
+        input = self.before_rnn(input)
+        hidden = self.rnn(input, hidden)
+        return hidden
+
+
 
