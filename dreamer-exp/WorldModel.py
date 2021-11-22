@@ -104,8 +104,8 @@ class WorldModel():
         return hidden_list, flow_list, jac_list
 
     def obs_step(self, embed, action, hidden):
-        embed_flow, logjac = self.flow_model.forward_flow(embed, torch.cat([hidden, action], dim=-1))
-        hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1), hidden)
+        embed_flow, logjac = self.flow_model.forward_flow(embed, torch.cat([hidden, action], dim=-1).detach())
+        hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1).detach(), hidden)
         return hidden, embed_flow, logjac
         
         
