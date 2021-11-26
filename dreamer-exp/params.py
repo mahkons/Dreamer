@@ -14,7 +14,6 @@ REC_L2_REG = 1e-5
 MAX_GRAD_NORM = 100.
 MAX_KL = 100.
 MIN_STD = 0.1
-TAU = 1. # set to 1 for no target 
 MODEL_WEIGHT_DECAY = 1e-6
 
 GAMMA = 0.99

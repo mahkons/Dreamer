@@ -30,9 +30,6 @@ class WorldModel():
         # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
         self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
-        # should use target encoder as well then
-        self.target_transition_model = deepcopy(self.transition_model)
-        self.target_flow_model = deepcopy(self.flow_model)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
@@ -42,7 +39,6 @@ class WorldModel():
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
-        self.target_flow_model
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
 
@@ -114,8 +110,8 @@ class WorldModel():
         state_list, reward_list, discount_list, action_list = [state], [], [], []
         for _ in range(horizon):
             action = agent.act(state, isTrain=True)
-            noise = self.target_flow_model.prior.sample([batch_size, EMBED_DIM])
-            state = self.target_transition_model(torch.cat([noise, action], dim=-1), state)
+            noise = self.flow_model.prior.sample([batch_size, EMBED_DIM])
+            state = self.transition_model(torch.cat([noise, action], dim=-1), state)
 
             state_list.append(state)
             action_list.append(action)
@@ -130,10 +126,6 @@ class WorldModel():
         hidden = torch.zeros((batch_size, FLOW_GRU_DIM), dtype=torch.float, device=self.device)
         prev_action = torch.zeros((batch_size, self.action_dim), dtype=torch.float, device=self.device)
         return hidden, prev_action
-
-    def __soft_update(self):
-        _soft_update(self.target_transition_model, self.transition_model, TAU)
-        _soft_update(self.target_flow_model, self.flow_model, TAU)
 
 
 def _soft_update(target, source, tau):
