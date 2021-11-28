@@ -9,16 +9,16 @@ import datetime
 
 logger__ = None
 
-def init_logger(logdir, logname):
+def init_logger(logdir, logname, description=None):
     global logger__
-    logger__ = Logger(logdir, logname)
+    logger__ = Logger(logdir, logname, description)
 
 def log():
     global logger__
     return logger__
 
 class Logger():
-    def __init__(self, logdir, logname):
+    def __init__(self, logdir, logname, description=None):
         self.logdir = logdir
 
         if logname.startswith("tmp") and os.path.exists(os.path.join(logdir, logname)):
@@ -35,6 +35,10 @@ class Logger():
 
         self.time_metrics = defaultdict(float)
         self.prev_time = None
+
+        if description is not None:
+            with open(os.path.join(self.dir, "description.txt"), "w") as f:
+                f.write(description + "\n")
 
     def get_log_path(self):
         return self.dir

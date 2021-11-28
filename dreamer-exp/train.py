@@ -57,8 +57,8 @@ def train(env, agent):
 
 
 
-def launch_single(logname, env_domain, env_task_name):
-    init_logger("logdir", logname)
+def launch_single(logname, env_domain, env_task_name, description=None):
+    init_logger("logdir", logname, description)
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
 
     env = ActionRepeatWrapper(
@@ -81,5 +81,6 @@ def launch_set(suite_logname):
         p.map(launch_single_pool, launch_args)
 
 if __name__ == "__main__":
-    launch_single("tmp", "cartpole", "balance")
+    description = "tmp"
+    launch_single("tmp", "cartpole", "balance", description)
     #  launch_set("tmplol_suite")
