@@ -12,7 +12,7 @@ from models.RSSM import RSSM
 from models.MAF import MAF
 from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE, \
-    FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF, REC_L2_REG, TAU, MODEL_WEIGHT_DECAY
+    FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF, REC_L2_REG, MODEL_WEIGHT_DECAY
 
 
 class WorldModel():
@@ -29,13 +29,15 @@ class WorldModel():
         
         # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
-        self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
+        self.flow_model = MAF(EMBED_DIM, 0, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
+        self.prior_model = PriorModel(FLOW_GRU_DIM + action_dim, EMBED_DIM).to(device)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
             self.discount_model.parameters(),
             self.transition_model.parameters(),
             self.flow_model.parameters(),
+            self.prior_model.parameters(),
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
@@ -43,6 +45,7 @@ class WorldModel():
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
 
         log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
+        self.data_initialized = False
 
 
     def optimize(self, obs, action, reward, done):
@@ -56,7 +59,9 @@ class WorldModel():
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
         hidden, flow_list, jac_list = self.observe(embed, action, init_hidden)
-        flow_loss = -(self.flow_model.prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
+
+        prior = torch.distributions.Normal(*self.prior_model(torch.cat([hidden[:-1], action], -1)))
+        flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
         
         predicted_reward = self.reward_model(hidden[2:])
         reward_loss = F.mse_loss(reward, predicted_reward)
@@ -70,7 +75,6 @@ class WorldModel():
         (rec_loss + flow_loss * FLOW_LOSS_COEFF + reward_loss + discount_loss + l2_reg_loss).backward()
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
-        self.__soft_update()
 
         log().add_plot_point("model_loss", [
             rec_loss.item(),
@@ -100,7 +104,7 @@ class WorldModel():
         return hidden_list, flow_list, jac_list
 
     def obs_step(self, embed, action, hidden):
-        embed_flow, logjac = self.flow_model.forward_flow(embed, torch.cat([hidden, action], dim=-1).detach())
+        embed_flow, logjac = self.flow_model.forward_flow(embed, torch.empty(0, device=self.device))
         hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1).detach(), hidden)
         return hidden, embed_flow, logjac
         
@@ -110,7 +114,8 @@ class WorldModel():
         state_list, reward_list, discount_list, action_list = [state], [], [], []
         for _ in range(horizon):
             action = agent.act(state, isTrain=True)
-            noise = self.flow_model.prior.sample([batch_size, EMBED_DIM])
+            prior = torch.distributions.Normal(*self.prior_model(torch.cat([state, action], -1)))
+            noise = prior.rsample()
             state = self.transition_model(torch.cat([noise, action], dim=-1), state)
 
             state_list.append(state)
@@ -163,4 +168,16 @@ class TransitionModel(nn.Module):
         return hidden
 
 
+class PriorModel(nn.Module):
+    def __init__(self, hidden_sz, flow_dim):
+        super(PriorModel, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(hidden_sz, hidden_sz),
+            nn.ELU(),
+            nn.Linear(hidden_sz, 2 * flow_dim)
+        )
+
+    def forward(self, hidden):
+        mu, log_std = self.model(hidden).chunk(2, dim=-1) 
+        return mu, torch.exp(log_std)
 

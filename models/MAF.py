@@ -34,10 +34,9 @@ class MAF(nn.Module):
     def forward_flow(self, inputs, conditions):
         in_shape = inputs.shape
         inputs = inputs.reshape(-1, self.flow_dim)
-        conditions = conditions.reshape(-1, self.condition_dim)
+        conditions.reshape(inputs.shape[0], self.condition_dim)
 
-        self.initialized = True # no data init 
-        if not self.initialized:
+        if not self.initialized and inputs.shape[0] != 1: # hack todo fix?
             with torch.no_grad():
                 self.model.data_init(inputs, conditions)
             self.initialized = True
@@ -47,11 +46,6 @@ class MAF(nn.Module):
 
     def get_log_prob(self, inputs, conditions):
         return self._get_log_prob(inputs, conditions)
-
-    def _get_log_prob(self, inputs, conditions):
-        prediction, log_jac = self.model.forward_flow(inputs, conditions)
-        log_prob = self.prior.log_prob(prediction).sum(dim=1) + log_jac
-        return log_prob
 
     def sample(self, conditions):
         batch_size = conditions.shape[0]
