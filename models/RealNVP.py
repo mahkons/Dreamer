@@ -2,38 +2,38 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as T
 
-from .MADE import MADE
-from .Shuffle import Shuffle
 from .Flow import SequentialConditionalFlow
+from .CouplingLayer import CouplingLayer
 from .NormFunctions import ActNorm
-from utils.logger import log
 
-class MAF(nn.Module):
-    def __init__(self, flow_dim, condition_dim, hidden_dim, num_blocks, device):
-        super(MAF, self).__init__()
-        self.flow_dim = flow_dim
+SCALE_L2_REG_COEFF = 5e-5
+MAX_GRAD_NORM = 100.
+
+class RealNVP(nn.Module):
+    def __init__(self, input_dim, condition_dim, hidden_shape, num_coupling, num_hidden, device):
+        super(RealNVP, self).__init__()
+        self.input_dim = input_dim
         self.condition_dim = condition_dim
-        self.hidden_dim = hidden_dim
         self.device = device
 
-        self.model = SequentialConditionalFlow(sum(
-            [[MADE(flow_dim, condition_dim, hidden_dim), ActNorm(flow_dim), Shuffle(torch.randperm(flow_dim))] \
-                for _ in range(num_blocks - 1)] \
-            + [[MADE(flow_dim, condition_dim, hidden_dim)]], 
-        []))
+        mask = torch.arange(input_dim) % 2
+        modules = []
+        for i in range(num_coupling):
+            modules.append(ActNorm(input_dim))
+            modules.append(CouplingLayer(input_dim, condition_dim, hidden_shape, num_hidden,
+                mask if i % 2 == 0 else 1 - mask))
+        self.model = SequentialConditionalFlow(modules)
         self.model.to(device)
+
         self.prior = torch.distributions.Normal(torch.tensor(0., device=device),
                 torch.tensor(1., device=device))
 
-        self.initialized = False
+        self.initialized = True # no data init
 
-
-    def calc_loss(self, inputs, conditions):
-        raise NotImplementedError
 
     def forward_flow(self, inputs, conditions):
         in_shape = inputs.shape
-        inputs = inputs.reshape(-1, self.flow_dim)
+        inputs = inputs.reshape(-1, self.input_dim)
         conditions.reshape(inputs.shape[0], self.condition_dim)
 
         if not self.initialized and inputs.shape[0] != 1: # hack todo fix?
@@ -44,14 +44,13 @@ class MAF(nn.Module):
         z, logjac = self.model.forward_flow(inputs, conditions)
         return z.reshape(in_shape), logjac.reshape(in_shape[:-1])
 
+    def inverse_flow(self, z, conditions):
+        in_shape = inputs.shape
+        inputs = inputs.reshape(-1, self.input_dim)
+        conditions.reshape(inputs.shape[0], self.condition_dim)
 
-    def sample(self, conditions):
-        batch_size = conditions.shape[0]
-        with torch.no_grad():
-            z = self.prior.sample([batch_size, self.flow_dim])
-            x, _ = self.model.inverse_flow(z, conditions)
-        return x
-
+        x, logjac = self.model.inverse_flow(z, conditions)
+        return x.reshape(in_shape), logjac.reshape(in_shape[:-1])
 
     def save(self, path):
         torch.save({
@@ -60,18 +59,22 @@ class MAF(nn.Module):
         }, path)
 
     def load(self, path):
-        state_dict = torch.load(path, map_location=self.device)
+        state_dict = torch.load(path)
         self.model.load_state_dict(state_dict["model"])
         self.optimizer.load_state_dict(state_dict["optimizer"])
 
 
 """
+    for celeba center crop and resize as in paper
     uniform noise to dequantize input
     logit(a + (1 - 2a) * image) as in paper
 """
-class MAFImageTransform():
+class RealNVPImageTransform():
     def __init__(self, dataset):
-        if dataset == "mnist":
+        if dataset == "celeba":
+            self.base_transform = T.Compose([T.ToTensor(), T.CenterCrop((148, 148)), T.Resize((64, 64)), T.RandomHorizontalFlip()])
+            self.alpha = 0.05
+        elif dataset == "mnist":
             self.base_transform = T.Compose([T.ToTensor(), T.RandomHorizontalFlip()])
             self.alpha = 0.01
         else:
@@ -83,4 +86,7 @@ class MAFImageTransform():
         noise = (torch.rand_like(image) - 0.5) * (1/256.)
         image = (image + noise).clip(0., 1.)
         return torch.logit(self.alpha +  (1 - 2 * self.alpha) * image)
+
+
+
 
