@@ -34,7 +34,7 @@ class MAF(nn.Module):
     def forward_flow(self, inputs, conditions):
         in_shape = inputs.shape
         inputs = inputs.reshape(-1, self.flow_dim)
-        conditions.reshape(inputs.shape[0], self.condition_dim)
+        conditions = conditions.reshape(inputs.shape[0], self.condition_dim)
 
         if not self.initialized and inputs.shape[0] != 1: # hack todo fix?
             with torch.no_grad():

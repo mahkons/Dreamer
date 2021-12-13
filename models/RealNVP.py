@@ -34,7 +34,7 @@ class RealNVP(nn.Module):
     def forward_flow(self, inputs, conditions):
         in_shape = inputs.shape
         inputs = inputs.reshape(-1, self.input_dim)
-        conditions.reshape(inputs.shape[0], self.condition_dim)
+        conditions = conditions.reshape(inputs.shape[0], self.condition_dim)
 
         if not self.initialized and inputs.shape[0] != 1: # hack todo fix?
             with torch.no_grad():
@@ -44,12 +44,12 @@ class RealNVP(nn.Module):
         z, logjac = self.model.forward_flow(inputs, conditions)
         return z.reshape(in_shape), logjac.reshape(in_shape[:-1])
 
-    def inverse_flow(self, z, conditions):
+    def inverse_flow(self, inputs, conditions):
         in_shape = inputs.shape
         inputs = inputs.reshape(-1, self.input_dim)
-        conditions.reshape(inputs.shape[0], self.condition_dim)
+        conditions = conditions.reshape(inputs.shape[0], self.condition_dim)
 
-        x, logjac = self.model.inverse_flow(z, conditions)
+        x, logjac = self.model.inverse_flow(inputs, conditions)
         return x.reshape(in_shape), logjac.reshape(in_shape[:-1])
 
     def save(self, path):

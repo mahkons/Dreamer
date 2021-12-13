@@ -28,20 +28,21 @@ class WorldModel():
         
         # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
-        self.flow_model = RealNVP(EMBED_DIM, 0, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, 2, device).to(device)
+        self.flow_model = RealNVP(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, 2, device).to(device)
         self.prior_model = PriorModel(FLOW_GRU_DIM + action_dim, EMBED_DIM).to(device)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
             self.discount_model.parameters(),
             self.transition_model.parameters(),
-            self.flow_model.parameters(),
+            #  self.flow_model.parameters(),
             self.prior_model.parameters(),
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
+        self.flow_optimizer = torch.optim.Adam(self.flow_model.parameters(), lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
 
         log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
         self.data_initialized = False
@@ -50,17 +51,14 @@ class WorldModel():
     def optimize(self, obs, action, reward, done):
         batch_size = action.shape[1]
         embed = self.encoder(obs)
-        reconstruction = self.decoder(embed)
-        rec_loss = ((obs - reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
         l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
-        embed = embed.detach()
 
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
         hidden, flow_list, jac_list = self.observe(embed, action, init_hidden)
+        condition = torch.cat([hidden[:-1], action], -1)
 
-        prior = torch.distributions.Normal(*self.prior_model(torch.cat([hidden[:-1], action], -1)))
-        flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
+        prior = torch.distributions.Normal(*self.prior_model(condition))
         
         predicted_reward = self.reward_model(hidden[2:])
         reward_loss = F.mse_loss(reward, predicted_reward)
@@ -70,9 +68,20 @@ class WorldModel():
             predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
+        z = prior.rsample()
+        embed_inv, _ = self.flow_model.inverse_flow(z, condition)
+        reconstruction = self.decoder(embed_inv)
+        rec_loss = ((obs - reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
+
         self.optimizer.zero_grad()
-        (rec_loss + flow_loss * FLOW_LOSS_COEFF + reward_loss + discount_loss + l2_reg_loss).backward()
+        (rec_loss + reward_loss + discount_loss + l2_reg_loss).backward(retain_graph=True)
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
+        self.optimizer.step()
+
+        flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
+        self.flow_optimizer.zero_grad()
+        flow_loss.backward(inputs=list(self.flow_model.parameters()))
+        nn.utils.clip_grad_norm_(self.flow_model.parameters(), MAX_GRAD_NORM)
         self.optimizer.step()
 
         log().add_plot_point("model_loss", [
@@ -103,7 +112,7 @@ class WorldModel():
         return hidden_list, flow_list, jac_list
 
     def obs_step(self, embed, action, hidden):
-        embed_flow, logjac = self.flow_model.forward_flow(embed, torch.empty(0, device=self.device))
+        embed_flow, logjac = self.flow_model.forward_flow(embed, torch.cat([hidden, action], dim=-1).detach())
         hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1).detach(), hidden)
         return hidden, embed_flow, logjac
         
