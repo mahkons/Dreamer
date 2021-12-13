@@ -30,7 +30,7 @@ class WorldModel():
         # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
         self.flow_model = RealNVP(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, 2, device).to(device)
-        self.prior_model = PriorModel(FLOW_GRU_DIM + action_dim, EMBED_DIM).to(device)
+        self.prior_model = PriorModel(FLOW_GRU_DIM + action_dim, EMBED_DIM, device).to(device)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
@@ -60,7 +60,7 @@ class WorldModel():
         hidden, flow_list, jac_list = self.observe(embed, action, init_hidden)
         condition = torch.cat([hidden[:-1], action], -1)
 
-        prior = torch.distributions.Normal(*self.prior_model(condition))
+        prior = self.prior_model(condition)
         
         predicted_reward = self.reward_model(hidden[2:])
         reward_loss = F.mse_loss(reward, predicted_reward)
@@ -71,7 +71,7 @@ class WorldModel():
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
         z = prior.rsample()
-        embed_inv, _ = self.flow_model.inverse_flow(z, condition.detach()) # or no detach?
+        embed_inv, _ = self.flow_model.inverse_flow(z, condition) # detach or no detach?
         reconstruction = self.decoder(embed_inv)
         rec_loss = ((obs - reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
         rec_loss += ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
@@ -125,7 +125,7 @@ class WorldModel():
         state_list, reward_list, discount_list, action_list = [state], [], [], []
         for _ in range(horizon):
             action = agent.act(state, isTrain=True)
-            prior = torch.distributions.Normal(*self.prior_model(torch.cat([state, action], -1)))
+            prior = self.prior_model(torch.cat([state, action], -1))
             noise = prior.rsample()
             state = self.transition_model(torch.cat([noise, action], dim=-1), state)
 
@@ -180,7 +180,7 @@ class TransitionModel(nn.Module):
 
 
 class PriorModel(nn.Module):
-    def __init__(self, hidden_sz, flow_dim):
+    def __init__(self, hidden_sz, flow_dim, device):
         super(PriorModel, self).__init__()
         self.model = nn.Sequential(
             nn.Linear(hidden_sz, hidden_sz),
@@ -188,7 +188,11 @@ class PriorModel(nn.Module):
             nn.Linear(hidden_sz, 2 * flow_dim)
         )
 
+        self.global_prior = torch.distributions.Normal(torch.tensor(0., device=device),
+                torch.tensor(1., device=device))
+
     def forward(self, hidden):
+        return self.global_prior
         mu, log_std = self.model(hidden).chunk(2, dim=-1) 
-        return mu, torch.exp(log_std)
+        return torch.distributions.Normal(mu, torch.exp(log_std))
 
