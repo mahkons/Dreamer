@@ -53,6 +53,7 @@ class WorldModel():
         batch_size = action.shape[1]
         embed = self.encoder(obs)
         l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
+        simple_reconstruction = self.decoder(embed)
 
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
@@ -73,6 +74,7 @@ class WorldModel():
         embed_inv, _ = self.flow_model.inverse_flow(z, condition)
         reconstruction = self.decoder(embed_inv)
         rec_loss = ((obs - reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
+        rec_loss += ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
 
         self.optimizer.zero_grad()
         (rec_loss + reward_loss + discount_loss + l2_reg_loss).backward(retain_graph=True)
