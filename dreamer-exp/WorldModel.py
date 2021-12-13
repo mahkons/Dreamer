@@ -71,7 +71,7 @@ class WorldModel():
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
         z = prior.rsample()
-        embed_inv, _ = self.flow_model.inverse_flow(z, condition)
+        embed_inv, _ = self.flow_model.inverse_flow(z, condition.detach())
         reconstruction = self.decoder(embed_inv)
         rec_loss = ((obs - reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
         rec_loss += ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
