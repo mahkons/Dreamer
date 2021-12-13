@@ -16,6 +16,7 @@ from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
 
 class WorldModel():
     def __init__(self, state_dim, action_dim, device):
+        assert(FROM_PIXELS)
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = device
@@ -82,7 +83,7 @@ class WorldModel():
         self.flow_optimizer.zero_grad()
         flow_loss.backward(inputs=list(self.flow_model.parameters()))
         nn.utils.clip_grad_norm_(self.flow_model.parameters(), MAX_GRAD_NORM)
-        self.optimizer.step()
+        self.flow_optimizer.step()
 
         log().add_plot_point("model_loss", [
             rec_loss.item(),
