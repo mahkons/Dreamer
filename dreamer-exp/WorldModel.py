@@ -187,12 +187,11 @@ class PriorModel(nn.Module):
             nn.ELU(),
             nn.Linear(hidden_sz, 2 * flow_dim)
         )
+        self.device = device
 
-        self.global_prior = torch.distributions.Normal(torch.tensor(0., device=device),
-                torch.tensor(1., device=device))
 
     def forward(self, hidden):
-        return self.global_prior
         mu, log_std = self.model(hidden).chunk(2, dim=-1) 
+        return torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(log_std))
         return torch.distributions.Normal(mu, torch.exp(log_std))
 
