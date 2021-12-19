@@ -8,7 +8,7 @@ from copy import deepcopy
 from utils.logger import log
 
 from networks import RewardNetwork, DiscountNetwork, ObservationEncoder, ObservationDecoder
-from models import RealNVP
+from models import RealNVP, MAF
 from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE, \
     FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, FLOW_LOSS_COEFF, REC_L2_REG, MODEL_WEIGHT_DECAY
@@ -29,21 +29,20 @@ class WorldModel():
         
         # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
-        self.flow_model = RealNVP(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, 2, device).to(device)
+        self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
         self.prior_model = PriorModel(FLOW_GRU_DIM + action_dim, EMBED_DIM, device).to(device)
 
         self.parameters = itertools.chain(
             self.reward_model.parameters(),
             self.discount_model.parameters(),
             self.transition_model.parameters(),
-            #  self.flow_model.parameters(),
+            self.flow_model.parameters(),
             self.prior_model.parameters(),
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
-        self.flow_optimizer = torch.optim.Adam(self.flow_model.parameters(), lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
 
         log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
         self.data_initialized = False
@@ -54,6 +53,7 @@ class WorldModel():
         embed = self.encoder(obs)
         l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
         simple_reconstruction = self.decoder(embed)
+        embed = embed.detach()
 
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
@@ -70,22 +70,13 @@ class WorldModel():
             predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
-        z = prior.rsample()
-        embed_inv, _ = self.flow_model.inverse_flow(z, condition) # detach or no detach?
-        reconstruction = self.decoder(embed_inv)
-        rec_loss = ((obs - reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
-        rec_loss += ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
+        rec_loss = ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
+        flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
 
         self.optimizer.zero_grad()
-        (rec_loss + reward_loss + discount_loss + l2_reg_loss).backward(retain_graph=True)
+        (rec_loss + reward_loss + discount_loss + l2_reg_loss + flow_loss).backward()
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
-
-        flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
-        self.flow_optimizer.zero_grad()
-        flow_loss.backward(inputs=list(self.flow_model.parameters()))
-        nn.utils.clip_grad_norm_(self.flow_model.parameters(), MAX_GRAD_NORM)
-        self.flow_optimizer.step()
 
         log().add_plot_point("model_loss", [
             rec_loss.item(),
