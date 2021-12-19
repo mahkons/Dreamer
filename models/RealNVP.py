@@ -28,7 +28,7 @@ class RealNVP(nn.Module):
         self.prior = torch.distributions.Normal(torch.tensor(0., device=device),
                 torch.tensor(1., device=device))
 
-        self.initialized = True # no data init
+        self.initialized = False # no data init
 
 
     def forward_flow(self, inputs, conditions):

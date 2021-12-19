@@ -67,7 +67,7 @@ class WorldModel():
 
         discount_loss = torch.tensor(0.)
         if PREDICT_DONE:
-            predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
+            predicted_discount_logit = self.discount_model.predict_logit(hidden[2:])
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
         rec_loss = ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
