@@ -39,12 +39,16 @@ class WorldModel():
             self.transition_model.parameters(),
             self.flow_model.parameters(),
             self.prior_model.parameters(),
+        )
+        self.ed_parameters = itertools.chain(
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
 
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
-        self.grad_multiplier = GradMultiplier(FLOW_LOSS_IN_GRU_MULTIPLIER)
+        self.ed_optimizer = torch.optim.Adam(self.ed_parameters, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
+
+        self.grad_multiplier = GradMultiplier(FLOW_LOSS_IN_GRU_MULTIPLIER) # for conditions
 
         log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
         self.data_initialized = False
@@ -55,7 +59,14 @@ class WorldModel():
         embed = self.encoder(obs)
         l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
         simple_reconstruction = self.decoder(embed)
+
+        rec_loss = ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
+        self.ed_optimizer.zero_grad()
+        (rec_loss + l2_reg_loss).backward()
+        nn.utils.clip_grad_norm_(self.ed_parameters, MAX_GRAD_NORM)
+        self.ed_optimizer.step()
         embed = embed.detach()
+
 
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
@@ -72,11 +83,10 @@ class WorldModel():
             predicted_discount_logit = self.discount_model.predict_logit(hidden[2:])
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
 
-        rec_loss = ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
         flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
 
         self.optimizer.zero_grad()
-        (rec_loss + reward_loss + discount_loss + l2_reg_loss + flow_loss).backward()
+        (reward_loss + discount_loss + flow_loss).backward()
         nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
         self.optimizer.step()
 
