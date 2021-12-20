@@ -48,8 +48,6 @@ class WorldModel():
         self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
         self.ed_optimizer = torch.optim.Adam(self.ed_parameters, lr=ED_MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
 
-        self.grad_multiplier = GradMultiplier(FLOW_LOSS_IN_GRU_MULTIPLIER) # for conditions
-
         log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
         self.data_initialized = False
 
@@ -119,7 +117,7 @@ class WorldModel():
 
     def obs_step(self, embed, action, hidden):
         condition = torch.cat([hidden, action], dim=-1)
-        condition = self.grad_multiplier(condition)
+        condition = GradMultiplier.apply(condition, FLOW_LOSS_IN_GRU_MULTIPLIER)
 
         embed_flow, logjac = self.flow_model.forward_flow(embed, condition)
         hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1).detach(), hidden)
@@ -166,16 +164,15 @@ def _kl_div(p, q):
     return div
 
 
-class GradMultiplier(nn.Module):
-    def __init__(self, coeff):
-        super(GradMultiplier, self).__init__()
-        self.coeff = coeff
-
-    def forward(self, x):
+class GradMultiplier(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, coeff):
+        ctx.coeff = coeff
         return x
 
-    def backward(self, grad):
-        return grad * self.coeff
+    @staticmethod
+    def backward(ctx, grad):
+        return grad * ctx.coeff, None
 
 
 # simple
