@@ -33,12 +33,15 @@ class WorldModel():
         self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
         self.prior_model = PriorModel(FLOW_GRU_DIM + action_dim, EMBED_DIM, device).to(device)
 
-        self.parameters = itertools.chain(
+        self.model_params = itertools.chain(
             self.reward_model.parameters(),
             self.discount_model.parameters(),
             self.transition_model.parameters(),
-            self.flow_model.parameters(),
             self.prior_model.parameters(),
+        )
+        self.parameters = itertools.chain(
+            self.model_params,
+            self.flow_model.parameters(),
         )
         self.ed_parameters = itertools.chain(
             self.encoder.parameters(),
@@ -85,7 +88,8 @@ class WorldModel():
 
         self.optimizer.zero_grad()
         (reward_loss + discount_loss + flow_loss * FLOW_LOSS_COEFF).backward()
-        nn.utils.clip_grad_norm_(self.parameters, MAX_GRAD_NORM)
+        nn.utils.clip_grad_norm_(self.model_params, MAX_GRAD_NORM)
+        nn.utils.clip_grad_norm_(self.flow_model.parameters(), MAX_GRAD_NORM)
         self.optimizer.step()
 
         log().add_plot_point("model_loss", [
