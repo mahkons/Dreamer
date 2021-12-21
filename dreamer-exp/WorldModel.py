@@ -52,7 +52,7 @@ class WorldModel():
         self.data_initialized = False
 
 
-    def optimize(self, obs, action, reward, done):
+    def optimize(self, obs, action, reward, discount):
         batch_size = action.shape[1]
         embed = self.encoder(obs)
         l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
@@ -79,7 +79,7 @@ class WorldModel():
         discount_loss = torch.tensor(0.)
         if PREDICT_DONE:
             predicted_discount_logit = self.discount_model.predict_logit(hidden[2:])
-            discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
+            discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, discount * GAMMA)
 
         flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
 

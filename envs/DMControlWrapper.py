@@ -30,8 +30,9 @@ class DMControlWrapper():
                 + self.action_spec.minimum
         time_step = self.env.step(action)
         reward = time_step.reward or 0
+        discount = time_step.discount
         done = time_step.last()
-        return self._get_obs(time_step), reward, done
+        return self._get_obs(time_step), reward, discount, done
 
     def _get_obs(self, time_step):
         if self.from_pixels:

@@ -28,8 +28,8 @@ def sample_episode(env, agent):
     action.squeeze_(0)
     for steps in itertools.count(1):
         action, hidden = agent(obs, hidden, action)
-        obs, reward, done = env.step(action)
-        episode.add_transition(action, reward, obs, done)
+        obs, reward, discount, done = env.step(action)
+        episode.add_transition(action, reward, obs, discount, done)
         if done:
             break
     return episode

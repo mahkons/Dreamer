@@ -12,9 +12,11 @@ class ActionRepeatWrapper():
 
     def step(self, action):
         reward_sum = 0
+        discount_prod = 1.
         for _ in range(self.action_repeat):
-            obs, reward, done = self.env.step(action)
+            obs, reward, discount, done = self.env.step(action)
             reward_sum += reward
+            discount_prod *= discount
             if done:
                 break
-        return obs, reward_sum, done
+        return obs, reward_sum, discount_prod, done

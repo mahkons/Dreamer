@@ -37,7 +37,7 @@ class WorldModel():
         log().add_plot("model_loss", ["reconstruction_loss", "kl_divergence_loss", "reward_loss", "discount_loss"])
 
 
-    def optimize(self, obs, action, reward, done):
+    def optimize(self, obs, action, reward, discount):
         embed = self.encoder(obs)
         hidden, prior, post = self.transition_model.observe(embed, action)
 
@@ -51,7 +51,7 @@ class WorldModel():
         discount_loss = torch.tensor(0.)
         if PREDICT_DONE:
             predicted_discount_logit = self.discount_model.predict_logit(hidden[1:])
-            discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, (1 - done) * GAMMA)
+            discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, discount * GAMMA)
 
         self.optimizer.zero_grad()
         (obs_loss + div_loss + reward_loss + discount_loss).backward()

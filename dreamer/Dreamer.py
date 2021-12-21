@@ -28,9 +28,9 @@ class Dreamer():
             return action.clip_(-1, 1).cpu().numpy(), next_hidden
 
     def optimize(self, batch_seq):
-        obs, action, reward, done = batch_seq
+        obs, action, reward, discount = batch_seq
 
-        hidden = self.world_model.optimize(obs, action, reward, done)
+        hidden = self.world_model.optimize(obs, action, reward, discount)
         hidden = hidden.detach_()[:-1].view(-1, STOCH_DIM + DETER_DIM)
         self.agent.optimize(self.world_model, hidden)
 

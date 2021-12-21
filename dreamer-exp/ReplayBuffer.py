@@ -9,16 +9,19 @@ class Episode():
         self.states = [torch.as_tensor(init_state, dtype=torch.float)]
         self.rewards = []
         self.actions = []
+        self.discounts = []
 
         self.done = False
 
-    def add_transition(self, action, reward, next_state, done):
+    def add_transition(self, action, reward, next_state, discount, done):
         assert(not self.done)
         self.states.append(torch.as_tensor(next_state, dtype=torch.float))
         self.actions.append(torch.as_tensor(action, dtype=torch.float))
         self.rewards.append(torch.as_tensor(reward, dtype=torch.float))
+        self.discounts.append(torch.as_tensor(discount, dtype=torch.float))
         if done:
             self.done = True
+            self.discounts = torch.stack(self.discounts)
             self.states = torch.stack(self.states)
             self.actions = torch.stack(self.actions)
             self.rewards = torch.stack(self.rewards)
@@ -26,15 +29,13 @@ class Episode():
     def sample(self, seq_len):
         assert(self.done)
         pos = np.random.choice(len(self))
-        done = torch.zeros(seq_len, dtype=torch.float) # TODO avoid creating same immutable tensors
         if pos >= len(self) - seq_len:
             pos = len(self) - seq_len
-            done[-1] = 1
 
         return self.states[pos : pos + seq_len + 1], \
                 self.actions[pos : pos + seq_len], \
                 self.rewards[pos : pos + seq_len], \
-                done
+                self.discounts[pos : pos + seq_len]
 
 
     def __len__(self):
