@@ -7,8 +7,9 @@ from ActorCritic import ActorCritic
 from params import STOCH_DIM, DETER_DIM, EMBED_DIM
 
 
-class Dreamer():
+class Dreamer(nn.Module):
     def __init__(self, state_dim, action_dim, device):
+        super(Dreamer, self).__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = device

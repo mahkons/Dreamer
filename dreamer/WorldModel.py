@@ -12,8 +12,9 @@ from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE
 
 
-class WorldModel():
+class WorldModel(nn.Module):
     def __init__(self, state_dim, action_dim, device):
+        super(WorldModel, self).__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = device
