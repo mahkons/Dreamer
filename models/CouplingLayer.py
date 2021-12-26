@@ -10,7 +10,7 @@ class CouplingLayer(ConditionalFlow):
         assert(len(mask.shape) == 1)
 
         self.register_buffer("mask", mask)
-        self.register_parameter("log_scale_scale", nn.Parameter(torch.tensor(0., dtype=torch.float)))
+        #self.register_parameter("log_scale_scale", nn.Parameter(torch.tensor(0., dtype=torch.float)))
 
         modules_scale = [nn.utils.weight_norm(nn.Linear(input_dim + condition_dim, hidden_shape)), nn.ReLU()] \
             + sum([[nn.utils.weight_norm(nn.Linear(hidden_shape, hidden_shape)), nn.ReLU()] for _ in range(num_hidden)], []) \
@@ -26,13 +26,13 @@ class CouplingLayer(ConditionalFlow):
     def forward_flow(self, x, condition):
         masked_x = x * self.mask
         input = torch.cat([masked_x, condition], dim=-1)
-        log_s = self.log_scale_scale * self.scale_net(input)
+        log_s = self.scale_net(input)
         t = self.translate_net(input)
         return masked_x + (1 - self.mask) * (x * torch.exp(log_s) + t), (log_s * (1 - self.mask)).sum(dim=1)
 
     def inverse_flow(self, x, condition):
         masked_x = x * self.mask
         input = torch.cat([masked_x, condition], dim=-1)
-        log_s = self.log_scale_scale * self.scale_net(input)
+        log_s = self.scale_net(input)
         t = self.translate_net(input)
         return masked_x + (1 - self.mask) * ((x - t) * torch.exp(-log_s)), -(log_s * (1 - self.mask)).sum(dim=1)

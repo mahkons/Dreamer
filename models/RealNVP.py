@@ -19,7 +19,7 @@ class RealNVP(nn.Module):
         mask = torch.arange(input_dim) % 2
         modules = []
         for i in range(num_coupling):
-            modules.append(ActNorm(input_dim))
+            #modules.append(ActNorm(input_dim))
             modules.append(CouplingLayer(input_dim, condition_dim, hidden_shape, num_hidden,
                 mask if i % 2 == 0 else 1 - mask))
         self.model = SequentialConditionalFlow(modules)
