@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import math
+import torch.nn as nn
 
 from WorldModel import WorldModel
 from ActorCritic import ActorCritic
