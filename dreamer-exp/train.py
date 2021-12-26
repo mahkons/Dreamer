@@ -54,6 +54,7 @@ def train(env, agent):
                 agent.optimize(batch_seq)
 
         log().save_logs() # TODO logger context?
+        torch.save(agent.state_dict(), os.path.join(log().get_log_path(), "dreamer.torch"))
 
 
 

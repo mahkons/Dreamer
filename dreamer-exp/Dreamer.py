@@ -1,14 +1,16 @@
 import numpy as np
 import torch
 import math
+import torch.nn as nn
 
 from WorldModel import WorldModel
 from ActorCritic import ActorCritic
 from params import EMBED_DIM, FLOW_GRU_DIM
 
 
-class Dreamer():
+class Dreamer(nn.Module):
     def __init__(self, state_dim, action_dim, device):
+        super(Dreamer, self).__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = device

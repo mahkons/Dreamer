@@ -15,8 +15,10 @@ from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     FLOW_LOSS_IN_GRU_MULTIPLIER, ED_MODEL_LR, WITH_PRIOR_MODEL, FLOW_LOSS_COEFF
 
 
-class WorldModel():
+class WorldModel(nn.Module):
     def __init__(self, state_dim, action_dim, device):
+        super(WorldModel, self).__init__()
+
         assert(FROM_PIXELS)
         self.state_dim = state_dim
         self.action_dim = action_dim

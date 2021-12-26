@@ -8,8 +8,9 @@ from utils.logger import log
 from networks import ActorNetwork, CriticNetwork
 from params import ACTOR_LR, CRITIC_LR, GAMMA, LAMBDA, HORIZON, MAX_GRAD_NORM
 
-class ActorCritic():
+class ActorCritic(nn.Module):
     def __init__(self, state_dim, action_dim, device):
+        super(ActorCritic, self).__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.actor = ActorNetwork(state_dim, action_dim).to(device)
