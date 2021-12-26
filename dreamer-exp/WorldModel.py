@@ -32,7 +32,8 @@ class WorldModel(nn.Module):
         
         # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
-        self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
+        self.flow_model = RealNVP(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, 1, device).to(device)
+        #self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
         self.prior_model = PriorModel(FLOW_GRU_DIM + action_dim, EMBED_DIM, device).to(device)
 
         self.model_params = itertools.chain(
@@ -41,19 +42,16 @@ class WorldModel(nn.Module):
             self.transition_model.parameters(),
             self.prior_model.parameters(),
         )
-        self.parameters = itertools.chain(
-            self.model_params,
-            self.flow_model.parameters(),
-        )
         self.ed_parameters = itertools.chain(
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
 
-        self.optimizer = torch.optim.Adam(self.parameters, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
+        self.optimizer = torch.optim.Adam(self.model_params, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
+        self.flow_optimizer = torch.optim.Adam(self.flow_model.parameters(), lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
         self.ed_optimizer = torch.optim.Adam(self.ed_parameters, lr=ED_MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
 
-        log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
+        log().add_plot("model_loss", ["reconstruction_loss", "flow_rec_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
         self.data_initialized = False
 
 
@@ -88,14 +86,22 @@ class WorldModel(nn.Module):
 
         flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
 
+        z = prior.rsample()
+        another_rec, _ = self.flow_model.inverse_flow(z, condition)
+        another_rec_loss = ((embed - another_rec)**2).sum(dim=2).mean()
+
         self.optimizer.zero_grad()
+        another_rec_loss.backward(retain_graph=True)
+        self.flow_optimizer.zero_grad()
         (reward_loss + discount_loss + flow_loss * FLOW_LOSS_COEFF).backward()
         nn.utils.clip_grad_norm_(self.model_params, MAX_GRAD_NORM)
         nn.utils.clip_grad_norm_(self.flow_model.parameters(), MAX_GRAD_NORM)
         self.optimizer.step()
+        self.flow_optimizer.step()
 
         log().add_plot_point("model_loss", [
             rec_loss.item(),
+            another_rec_loss.item(),
             flow_loss.item(),
             reward_loss.item(),
             discount_loss.item(),
