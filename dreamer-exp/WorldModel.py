@@ -12,7 +12,7 @@ from models import RealNVP, MAF
 from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE, \
     FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, REC_L2_REG, MODEL_WEIGHT_DECAY, \
-    FLOW_LOSS_IN_GRU_MULTIPLIER, ED_MODEL_LR, WITH_PRIOR_MODEL, FLOW_LOSS_COEFF, ANOTHER_REC_COEFF
+    FLOW_LOSS_IN_GRU_MULTIPLIER, ED_MODEL_LR, WITH_PRIOR_MODEL, FLOW_LOSS_COEFF
 
 
 class WorldModel(nn.Module):
@@ -86,12 +86,7 @@ class WorldModel(nn.Module):
 
         flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
 
-        z = prior.rsample()
-        another_rec, _ = self.flow_model.inverse_flow(z, condition)
-        another_rec_loss = ((embed - another_rec)**2).sum(dim=2).mean()
-
         self.optimizer.zero_grad()
-        (ANOTHER_REC_COEFF * another_rec_loss).backward(retain_graph=True)
         self.flow_optimizer.zero_grad()
         (reward_loss + discount_loss + flow_loss * FLOW_LOSS_COEFF).backward()
         nn.utils.clip_grad_norm_(self.model_params, MAX_GRAD_NORM)
@@ -101,7 +96,6 @@ class WorldModel(nn.Module):
 
         log().add_plot_point("model_loss", [
             rec_loss.item(),
-            another_rec_loss.item(),
             flow_loss.item(),
             reward_loss.item(),
             discount_loss.item(),
