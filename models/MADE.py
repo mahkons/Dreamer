@@ -30,11 +30,11 @@ class MADE(ConditionalFlow):
         log_s = torch.tanh(log_s) * self.log_scale_scale
         return x * torch.exp(log_s) + t, log_s.sum(dim=1)
 
-    def inverse_flow(self, x, condition):
-        u = x
-        for i in range(1, x.shape[1]):
+    def inverse_flow(self, u, condition):
+        x = torch.zeros_like(u)
+        for i in range(0, x.shape[1]):
             log_s, t = self.model(torch.cat([x, condition], dim=1)).chunk(2, dim=1)
             log_s = torch.tanh(log_s) * self.log_scale_scale
-            x = (u - t) * torch.exp(-log_s)
+            x[:, i] = (u[:,i] - t[:,i]) * torch.exp(-log_s[:,i])
         return x, -log_s.sum(dim=1)
 

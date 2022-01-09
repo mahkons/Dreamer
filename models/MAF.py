@@ -25,7 +25,7 @@ class MAF(nn.Module):
         self.prior = torch.distributions.Normal(torch.tensor(0., device=device),
                 torch.tensor(1., device=device))
 
-        self.initialized = False
+        self.initialized = True
 
 
     def calc_loss(self, inputs, conditions):
