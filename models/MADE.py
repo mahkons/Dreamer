@@ -23,18 +23,18 @@ class MADE(ConditionalFlow):
             nn.ELU(),
             MaskedLinear(hidden_dim, 2 * dim, order_out[:, None] > order_hidden[None])
         )
-        self.log_scale_scale = nn.Parameter(torch.tensor(0., dtype=torch.float))
+        #self.log_scale_scale = nn.Parameter(torch.tensor(0., dtype=torch.float))
 
     def forward_flow(self, x, condition):
         log_s, t = self.model(torch.cat([x, condition], dim=1)).chunk(2, dim=1)
-        log_s = torch.tanh(log_s) * self.log_scale_scale
+        log_s = torch.tanh(log_s)
         return x * torch.exp(log_s) + t, log_s.sum(dim=1)
 
     def inverse_flow(self, u, condition):
         x = torch.zeros_like(u)
         for i in range(0, x.shape[1]):
             log_s, t = self.model(torch.cat([x, condition], dim=1)).chunk(2, dim=1)
-            log_s = torch.tanh(log_s) * self.log_scale_scale
+            log_s = torch.tanh(log_s)
             x[:, i] = (u[:,i] - t[:,i]) * torch.exp(-log_s[:,i])
         return x, -log_s.sum(dim=1)
 
