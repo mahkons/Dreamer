@@ -123,7 +123,7 @@ class WorldModel(nn.Module):
         condition = GradMultiplier.apply(condition, FLOW_LOSS_IN_GRU_MULTIPLIER)
 
         embed_flow, logjac = self.flow_model.forward_flow(embed, condition)
-        hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1).detach(), hidden)
+        hidden = self.transition_model(torch.cat([embed_flow, action], dim=-1), hidden)
         return hidden, embed_flow, logjac
         
         
