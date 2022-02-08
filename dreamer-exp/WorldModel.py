@@ -41,14 +41,14 @@ class WorldModel(nn.Module):
             self.discount_model.parameters(),
             self.transition_model.parameters(),
             self.prior_model.parameters(),
+            self.flow_model.parameters(),
         )
         self.ed_parameters = itertools.chain(
             self.encoder.parameters(),
             self.decoder.parameters(),
         )
 
-        self.optimizer = torch.optim.Adam(self.model_params, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
-        self.flow_optimizer = torch.optim.Adam(self.flow_model.parameters(), lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
+        self.model_optimizer = torch.optim.Adam(self.model_params, lr=MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
         self.ed_optimizer = torch.optim.Adam(self.ed_parameters, lr=ED_MODEL_LR, weight_decay=MODEL_WEIGHT_DECAY)
 
         log().add_plot("model_loss", ["reconstruction_loss", "flow_rec_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
@@ -86,13 +86,10 @@ class WorldModel(nn.Module):
 
         flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
 
-        self.optimizer.zero_grad()
-        self.flow_optimizer.zero_grad()
+        self.model_optimizer.zero_grad()
         (reward_loss + discount_loss + flow_loss * FLOW_LOSS_COEFF).backward()
         nn.utils.clip_grad_norm_(self.model_params, MAX_GRAD_NORM)
-        nn.utils.clip_grad_norm_(self.flow_model.parameters(), MAX_GRAD_NORM)
-        self.optimizer.step()
-        self.flow_optimizer.step()
+        self.model_optimizer.step()
 
         log().add_plot_point("model_loss", [
             rec_loss.item(),
