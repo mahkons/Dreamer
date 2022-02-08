@@ -11,7 +11,7 @@ class MADE(ConditionalFlow):
         assert(hidden_dim >= dim > 2)
 
         order_input = torch.arange(dim)
-        order_hidden = torch.arange(hidden_dim) % (dim - 2) + 1
+        order_hidden = torch.arange(hidden_dim) % (dim - 1)
         order_out = torch.arange(2 * dim) % dim
 
         self.model = nn.Sequential(
