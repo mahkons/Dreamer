@@ -5,7 +5,7 @@ import torchvision.transforms as T
 from .MADE import MADE
 from .Shuffle import Shuffle
 from .Flow import SequentialConditionalFlow
-from .NormFunctions import ActNorm
+from .NormFunctions import ActNorm, RunningBatchNorm1d
 from utils.logger import log
 
 class MAF(nn.Module):
@@ -17,7 +17,7 @@ class MAF(nn.Module):
         self.device = device
 
         self.model = SequentialConditionalFlow(sum(
-            [[MADE(flow_dim, condition_dim, hidden_dim), ActNorm(flow_dim), Shuffle(torch.randperm(flow_dim))] \
+            [[MADE(flow_dim, condition_dim, hidden_dim), RunningBatchNorm1d(flow_dim), ActNorm(flow_dim), Shuffle(torch.randperm(flow_dim))] \
                 for _ in range(num_blocks - 1)] \
             + [[MADE(flow_dim, condition_dim, hidden_dim)]], 
         []))
