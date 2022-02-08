@@ -99,7 +99,7 @@ class WorldModel(nn.Module):
             l2_reg_loss.item()
         ])
 
-        return hidden
+        return torch.cat([hidden[:-1], flow_list], dim=-1)
 
 
     def observe(self, embed_seq, action_seq, init_hidden):
@@ -130,20 +130,23 @@ class WorldModel(nn.Module):
     def imagine(self, agent, state, horizon):
         batch_size = state.shape[0]
         state_list, reward_list, discount_list, action_list = [state], [], [], []
-        for _ in range(horizon):
+        hidden, noise = state[:, :FLOW_GRU_DIM], state[:, FLOW_GRU_DIM:]
+        for _ in range(horizon + 1):
             action = agent.act(state, isTrain=True)
-            prior = self.prior_model(torch.cat([state, action], -1))
+
+            hidden = self.transition_model(torch.cat([noise, action], dim=-1), hidden)
+            prior = self.prior_model(torch.cat([hidden, action], -1))
             noise = prior.rsample()
-            state = self.transition_model(torch.cat([noise, action], dim=-1), state)
+            state = torch.cat([hidden, noise], dim=-1)
 
             state_list.append(state)
             action_list.append(action)
 
         state = torch.stack(state_list)
         action = torch.stack(action_list)
-        reward = self.reward_model(state[1:])
-        discount = torch.sigmoid(self.discount_model.predict_logit(state[1:]))
-        return state, action, reward, discount
+        reward = self.reward_model(state[2:, :, :FLOW_GRU_DIM])
+        discount = torch.sigmoid(self.discount_model.predict_logit(state[2:, :, :FLOW_GRU_DIM]))
+        return state[:-1], action[:-1], reward, discount
 
     def initial_state(self, batch_size):
         hidden = torch.zeros((batch_size, FLOW_GRU_DIM), dtype=torch.float, device=self.device)
