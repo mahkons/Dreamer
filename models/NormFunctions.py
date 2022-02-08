@@ -62,11 +62,16 @@ class RunningBatchNorm1d(ConditionalFlow):
         if x.shape[0] == 1:
             nm, ns = self.m, self.s
 
-        self.m.copy_(nm)
-        self.s.copy_(ns)
+        with torch.no_grad():
+            self.m.copy_(nm)
+            self.s.copy_(ns)
 
         return (x - nm) / torch.sqrt(ns + 1e-5), -0.5 * torch.log(ns + 1e-5).sum().repeat(x.shape[0])
 
     def inverse_flow(self, x, condition):
         return x * torch.sqrt(self.s + 1e-5) + self.m, 0.5 * torch.log(self.s + 1e-5).sum().repeat(x.shape[0])
+
+    def data_init_(self, x, condition):
+        return self.forward_flow(x, condition)[0]
+
 
