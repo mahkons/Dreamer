@@ -44,7 +44,7 @@ class ActNorm(ConditionalFlow):
 
 
 class RunningBatchNorm1d(ConditionalFlow):
-    def __init__(self, dim, tau=0.1):
+    def __init__(self, dim, tau=0.9):
         super(RunningBatchNorm1d, self).__init__()
         self.register_buffer("m", torch.zeros((dim,), dtype=torch.float))
         self.register_buffer("s", torch.ones((dim,), dtype=torch.float))
