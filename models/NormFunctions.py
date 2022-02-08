@@ -43,4 +43,30 @@ class ActNorm(ConditionalFlow):
         return self.forward_flow(x, condition)[0]
 
 
+class RunningBatchNorm1d(ConditionalFlow):
+    def __init__(self, dim, tau=0.1):
+        super(RunningBatchNorm1d, self).__init__()
+        self.register_buffer("m", torch.zeros((dim,), dtype=torch.float))
+        self.register_buffer("s", torch.ones((dim,), dtype=torch.float))
+        self.tau = tau
+
+    def forward_flow(self, x, condition):
+        cur_m = x.mean(dim=0)
+        cur_s = ((x - cur_m)**2).mean(dim=0)
+
+        # backprop through cur_m, cur_s as in RealNVP
+        nm = cur_m * self.tau + (1 - self.tau) * self.m
+        ns = cur_s * self.tau + (1 - self.tau) * self.s
+
+        # TODO add train/eval or smth
+        if x.shape[0] == 1:
+            nm, ns = self.m, self.s
+
+        self.m.copy_(nm)
+        self.s.copy_(ns)
+
+        return (x - nm) / torch.sqrt(ns + 1e-5), -0.5 * torch.log(ns + 1e-5).sum().repeat(x.shape[0])
+
+    def inverse_flow(self, x, condition):
+        return x * torch.sqrt(self.s + 1e-5) + self.m, 0.5 * torch.log(self.s + 1e-5).sum().repeat(x.shape[0])
 
