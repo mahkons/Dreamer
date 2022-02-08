@@ -51,7 +51,7 @@ class WorldModel(nn.Module):
         self.model_optimizer = torch.optim.Adam(self.model_params, lr=MODEL_LR)
         self.ed_optimizer = torch.optim.Adam(self.ed_parameters, lr=ED_MODEL_LR)
 
-        log().add_plot("model_loss", ["reconstruction_loss", "flow_rec_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
+        log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
         self.data_initialized = False
 
 
