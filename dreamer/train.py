@@ -48,13 +48,13 @@ def train(env, agent):
         episode_count += 1
         log().add_plot_point("eval_reward", [episode_count, step_count, episode.rewards.sum().item()])
 
-        if memory.num_steps() >= INIT_STEPS:
-            for i in range(TRAIN_ITERS_PER_EPISODE):
-                batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
-                agent.optimize(batch_seq)
+        #  if memory.num_steps() >= INIT_STEPS:
+            #  for i in range(TRAIN_ITERS_PER_EPISODE):
+                #  batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
+                #  agent.optimize(batch_seq)
 
         log().save_logs() # TODO logger context?
-
+    torch.save({"memory": memory.memory, "step_to_episode": memory.step_to_episode}, "logdir/episodes.pt")
 
 
 def launch_single(logname, env_domain, env_task_name):
@@ -66,6 +66,7 @@ def launch_single(logname, env_domain, env_task_name):
         action_repeat=ACTION_REPEAT
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
+    agent.load_state_dict(torch.load("logdir/dreamer.torch"))
     train(env, agent)
 
 
@@ -81,5 +82,5 @@ def launch_set(suite_logname):
         p.map(launch_single_pool, launch_args)
 
 if __name__ == "__main__":
-    launch_single("tmp", "quadruped", "walk")
+    launch_single("tmp", "walker", "walk")
     #  launch_set("tmplol_suite")
