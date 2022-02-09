@@ -22,6 +22,7 @@ from params import RANDOM_SEED, INIT_STEPS, MEMORY_SIZE, TOTAL_STEPS, \
 device = torch.device("cuda")
 
 def sample_episode(env, agent):
+    agent.eval()
     obs = env.reset()
     episode = Episode(obs)
     hidden, action = agent.world_model.initial_state(batch_size=1) 
@@ -51,6 +52,7 @@ def train(env, agent):
         if memory.num_steps() >= INIT_STEPS:
             for i in range(TRAIN_ITERS_PER_EPISODE):
                 batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
+                agent.train()
                 agent.optimize(batch_seq)
 
         log().save_logs() # TODO logger context?
@@ -83,5 +85,5 @@ def launch_set(suite_logname):
 
 if __name__ == "__main__":
     description = "tmp"
-    launch_single("tmp", "cartpole", "balance", description)
+    launch_single("tmp", "walker", "walk", description)
     #  launch_set("tmplol_suite")
