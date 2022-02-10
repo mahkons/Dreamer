@@ -35,8 +35,8 @@ class WorldModel(nn.Module):
         # TODO clean up this mess
         self.transition_model = TransitionModel(EMBED_DIM + action_dim, FLOW_GRU_DIM).to(device)
         #self.flow_model = RealNVP(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, 1, device).to(device)
-        self.flow_model = MAF(EMBED_DIM, FLOW_GRU_DIM + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
-        self.prior_model = PriorModel(FLOW_GRU_DIM + action_dim, EMBED_DIM, device).to(device)
+        self.flow_model = MAF(EMBED_DIM, 24 + action_dim, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, device).to(device)
+        self.prior_model = PriorModel(24 + action_dim, EMBED_DIM, device).to(device)
 
         self.model_params = itertools.chain(
             self.reward_model.parameters(),
@@ -76,14 +76,15 @@ class WorldModel(nn.Module):
 
         return embed, rec_loss, l2_reg_loss
 
-    def optimize(self, obs, action, reward, discount):
+    def optimize(self, obs, cond, action, reward, discount):
         batch_size = action.shape[1]
         embed, rec_loss, l2_reg_loss = self.optimize_encoder(obs)
 
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
-        hidden, flow_list, jac_list = self.observe(embed, action, init_hidden)
-        condition = torch.cat([hidden[:-1], action], -1)
+        hidden, flow_list, jac_list = self.observe(embed, action, init_hidden, cond)
+        #  condition = torch.cat([hidden[:-1], action], -1)
+        condition = torch.cat([cond, action], dim=-1)
 
         prior = self.prior_model(condition)
         
@@ -113,7 +114,7 @@ class WorldModel(nn.Module):
         return torch.cat([hidden[:-1], flow_list], dim=-1)
 
 
-    def observe(self, embed_seq, action_seq, init_hidden):
+    def observe(self, embed_seq, action_seq, init_hidden, cond_seq):
         seq_len, batch_size, embed_size = embed_seq.shape
 
         hidden = init_hidden
@@ -122,15 +123,15 @@ class WorldModel(nn.Module):
         jac_list = torch.empty(seq_len, batch_size, dtype=torch.float, device=self.device)
         hidden_list[0] = hidden
 
-        for i, (embed, action) in enumerate(zip(embed_seq, action_seq)):
-            hidden, embed_flow, logjac = self.obs_step(embed, action, hidden)
+        for i, (embed, action, cond) in enumerate(zip(embed_seq, action_seq, cond_seq)):
+            hidden, embed_flow, logjac = self.obs_step(embed, action, hidden, cond)
             hidden_list[i + 1] = hidden
             flow_list[i], jac_list[i] = embed_flow, logjac
 
         return hidden_list, flow_list, jac_list
 
-    def obs_step(self, embed, action, hidden):
-        condition = torch.cat([hidden, action], dim=-1)
+    def obs_step(self, embed, action, hidden, cond):
+        condition = torch.cat([cond, action], dim=-1)
         condition = GradMultiplier.apply(condition, FLOW_LOSS_IN_GRU_MULTIPLIER)
 
         embed_flow, logjac = self.flow_model.forward_flow(embed, condition)

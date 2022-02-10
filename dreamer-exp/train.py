@@ -23,14 +23,14 @@ device = torch.device("cuda")
 
 def sample_episode(env, agent):
     agent.eval()
-    obs = env.reset()
-    episode = Episode(obs)
+    obs, cond = env.reset()
+    episode = Episode((obs, cond))
     hidden, action = agent.world_model.initial_state(batch_size=1) 
     action.squeeze_(0)
     for steps in itertools.count(1):
-        action, hidden = agent(obs, hidden, action)
-        obs, reward, discount, done = env.step(action)
-        episode.add_transition(action, reward, obs, discount, done)
+        action, hidden = agent(obs, cond, hidden, action)
+        (obs, cond), reward, discount, done = env.step(action)
+        episode.add_transition(action, reward, (obs, cond), discount, done)
         if done:
             break
     return episode

@@ -6,7 +6,9 @@ from collections import namedtuple, deque
 
 class Episode():
     def __init__(self, init_state):
-        self.states = [torch.as_tensor(init_state, dtype=torch.float)]
+        init_obs, init_cond = init_state
+        self.states = [torch.as_tensor(init_obs, dtype=torch.float)]
+        self.conds = [torch.as_tensor(init_cond, dtype=torch.float)]
         self.rewards = []
         self.actions = []
         self.discounts = []
@@ -15,7 +17,8 @@ class Episode():
 
     def add_transition(self, action, reward, next_state, discount, done):
         assert(not self.done)
-        self.states.append(torch.as_tensor(next_state, dtype=torch.float))
+        self.states.append(torch.as_tensor(next_state[0], dtype=torch.float))
+        self.conds.append(torch.as_tensor(next_state[1], dtype=torch.float))
         self.actions.append(torch.as_tensor(action, dtype=torch.float))
         self.rewards.append(torch.as_tensor(reward, dtype=torch.float))
         self.discounts.append(torch.as_tensor(discount, dtype=torch.float))
@@ -23,6 +26,7 @@ class Episode():
             self.done = True
             self.discounts = torch.stack(self.discounts)
             self.states = torch.stack(self.states)
+            self.conds = torch.stack(self.conds)
             self.actions = torch.stack(self.actions)
             self.rewards = torch.stack(self.rewards)
 
@@ -33,6 +37,7 @@ class Episode():
             pos = len(self) - seq_len
 
         return self.states[pos : pos + seq_len + 1], \
+                self.conds[pos : pos + seq_len + 1], \
                 self.actions[pos : pos + seq_len], \
                 self.rewards[pos : pos + seq_len], \
                 self.discounts[pos : pos + seq_len]
@@ -69,8 +74,9 @@ class ReplayBuffer():
         """
         episodes = [self.step_to_episode[step] for step in np.random.choice(len(self.step_to_episode), size=batch_size)]
         trajectories = [episode.sample(seq_len) for episode in episodes]        
-        state, action, reward, done = zip(*trajectories)
+        state, cond, action, reward, done = zip(*trajectories)
         return torch.stack(state).transpose(0, 1).contiguous().to(device), \
+            torch.stack(cond).transpose(0, 1).to(device), \
             torch.stack(action).transpose(0, 1).to(device), \
             torch.stack(reward).transpose(0, 1).to(device), \
             torch.stack(done).transpose(0, 1).to(device)

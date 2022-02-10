@@ -37,7 +37,8 @@ class DMControlWrapper():
     def _get_obs(self, time_step):
         if self.from_pixels:
             obs = self.env.physics.render(*self._size, camera_id=self._camera)
-            return (np.ascontiguousarray(obs.transpose(2, 0, 1)) / 255.) * 2 - 1.
+            vals = [np.array([x]) if len(x.shape) == 0 else x for x in time_step.observation.values()]
+            return (np.ascontiguousarray(obs.transpose(2, 0, 1)) / 255.) * 2 - 1., np.concatenate(vals)
         else:
             vals = [np.array([x]) if len(x.shape) == 0 else x for x in time_step.observation.values()]
             return np.concatenate(vals)

@@ -18,23 +18,24 @@ class Dreamer(nn.Module):
         self.world_model = WorldModel(state_dim, action_dim, device)
         self.agent = ActorCritic(FLOW_GRU_DIM + EMBED_DIM, action_dim, device)
 
-    def __call__(self, obs, hidden, prev_action):
+    def __call__(self, obs, cond, hidden, prev_action):
         with torch.no_grad():
             obs = torch.as_tensor(obs, dtype=torch.float, device=self.device).unsqueeze(0)
+            cond = torch.as_tensor(cond, dtype=torch.float, device=self.device).unsqueeze(0)
             prev_action = torch.as_tensor(prev_action, dtype=torch.float, device=self.device).unsqueeze(0)
             embed = self.world_model.encoder(obs)
-            next_hidden, embed_flow, _ = self.world_model.obs_step(embed, prev_action, hidden)
+            next_hidden, embed_flow, _ = self.world_model.obs_step(embed, prev_action, hidden, cond)
             action = self.agent.act(torch.cat([hidden, embed_flow], dim=-1), isTrain=False).squeeze(0)
             
             action = action + torch.randn_like(action) * math.sqrt(0.3) # superb exploration
             return action.clip_(-1, 1).cpu().numpy(), next_hidden
 
     def optimize(self, batch_seq):
-        obs, action, reward, discount = batch_seq
+        obs, cond, action, reward, discount = batch_seq
 
-        hidden = self.world_model.optimize(obs, action, reward, discount)
-        hidden = hidden.detach_().view(-1, FLOW_GRU_DIM + EMBED_DIM)
-        self.agent.optimize(self.world_model, hidden)
+        hidden = self.world_model.optimize(obs, cond, action, reward, discount)
+        #hidden = hidden.detach_().view(-1, FLOW_GRU_DIM + EMBED_DIM)
+        #  self.agent.optimize(self.world_model, hidden)
 
 
 
