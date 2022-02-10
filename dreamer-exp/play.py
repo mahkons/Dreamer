@@ -71,6 +71,8 @@ def test_decoder(env, agent):
         obs = torch.stack(obs[::5]).float() # only every 5th
         embed = agent.world_model.encoder(obs)
         rec = agent.world_model.decoder(embed)
+    #  print(((rec - obs)**2).mean(dim=0).sum())
+    print(rec.min(), rec.max(), obs.min(), obs.max())
     return rec*0.5 + 0.5, obs*0.5 + 0.5
 
 
@@ -85,7 +87,7 @@ if __name__ == "__main__":
         action_repeat=ACTION_REPEAT
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
-    pretrained = torch.load("logdir/dreamer.torch")
+    pretrained = torch.load("logdir/dreamer_exp3.5.torch")
     agent.load_state_dict(pretrained)
 
     #  encoder_dict = agent.world_model.encoder.state_dict()
