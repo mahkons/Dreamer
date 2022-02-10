@@ -19,7 +19,7 @@ def sample_episode(env, agent):
     obs = env.reset()
     hidden, action = agent.world_model.initial_state(batch_size=1) 
     hidden_list, action_list = [hidden], [action]
-    obs_list = [torch.from_numpy(obs) + 0.5]
+    obs_list = [torch.from_numpy(obs)]
     action.squeeze_(0)
 
     for steps in itertools.count(1):
@@ -28,7 +28,7 @@ def sample_episode(env, agent):
 
         hidden_list.append(hidden)
         action_list.append(torch.from_numpy(action).unsqueeze(0))
-        obs_list.append(torch.from_numpy(obs) + 0.5)
+        obs_list.append(torch.from_numpy(obs))
         if done:
             break
     return list(zip(hidden_list, action_list)), obs_list
@@ -46,7 +46,7 @@ def play_both(env, agent, horizon):
     
     images = play(agent, horizon, init_state)
 
-    images_obs = torch.stack(obs[10:10+horizon+1])
+    images_obs = torch.stack(obs[10:10+horizon+1]) *0.5 + 0.5
     return torch.cat([images, images_obs], dim=0)
 
 
@@ -61,7 +61,7 @@ def play(agent, horizon, init_state=None):
         condition = torch.cat([state.squeeze(1), action], dim=-1)
 
         embeds = agent.world_model.flow_model.sample(condition)
-        images = agent.world_model.decoder(embeds) + 0.5
+        images = agent.world_model.decoder(embeds) * 0.5 + 0.5
     return images
 
 
@@ -70,7 +70,8 @@ def test_decoder(env, agent):
         _, obs = sample_episode(env, agent)
         obs = torch.stack(obs[::5]).float() # only every 5th
         embed = agent.world_model.encoder(obs)
-        rec = agent.world_model.decoder(embed) + 0.5
+        rec = agent.world_model.decoder(embed) * 0.5 + 0.5
+        print(rec[0, :, :5, :5])
     return rec
 
 
@@ -86,6 +87,7 @@ if __name__ == "__main__":
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
     pretrained = torch.load("logdir/dreamer.torch")
+    agent.load_state_dict(pretrained)
 
     #  encoder_dict = agent.world_model.encoder.state_dict()
     #  decoder_dict = agent.world_model.decoder.state_dict()
