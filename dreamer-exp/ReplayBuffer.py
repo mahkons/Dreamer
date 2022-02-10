@@ -70,7 +70,7 @@ class ReplayBuffer():
         episodes = [self.step_to_episode[step] for step in np.random.choice(len(self.step_to_episode), size=batch_size)]
         trajectories = [episode.sample(seq_len) for episode in episodes]        
         state, action, reward, done = zip(*trajectories)
-        return torch.ascontiguousarray(torch.stack(state).transpose(0, 1).to(device)), \
+        return torch.stack(state).transpose(0, 1).contiguous().to(device), \
             torch.stack(action).transpose(0, 1).to(device), \
             torch.stack(reward).transpose(0, 1).to(device), \
             torch.stack(done).transpose(0, 1).to(device)
