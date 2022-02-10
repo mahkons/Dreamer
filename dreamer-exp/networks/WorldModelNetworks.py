@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import torchvision
+from torchvision import transforms as T
 import math
 
 from models.MLP import MLP
@@ -133,3 +136,41 @@ class ObservationDecoder(nn.Module):
             nn.Tanh()
         )
 
+
+class ResnetEncoder(nn.Module):
+    def __init__(self):
+        super(ResnetEncoder, self).__init__()
+        self.model = torchvision.models.resnet18(pretrained=False)
+        self.model.load_state_dict(torch.load("logdir/resnet18.pt")) # should be saved here =(
+        self.model.eval()
+        self.out_dim = 256
+        self.obs_dim = (3, 64, 64)
+
+        self.normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
+    def forward(self, x):
+        if len(x.shape) > 4: # convolutional layers does not accept 5d tensors
+            out_shape = list(x.shape)[:-3] + [self.out_dim]
+            return self.forward_impl(x.reshape(-1, *self.obs_dim)).reshape(out_shape)
+        return self.forward_impl(x)
+
+    def forward_impl(self, x):
+        x = torchvision.transforms.functional.resize(x, 256, antialias=True)
+        x = self.normalize(x)
+        # from https://pytorch.org/vision/stable/_modules/torchvision/models/resnet.html#resnet18 
+
+        x = self.model.conv1(x)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        x = self.model.maxpool(x)
+
+        x = self.model.layer1(x)
+        x = self.model.layer2(x)
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+
+        x = self.model.avgpool(x)
+        x = torch.flatten(x, 1)
+
+        x = F.avg_pool1d(x, 2, 2) # 512 -> 256
+        return x
