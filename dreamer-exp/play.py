@@ -11,7 +11,7 @@ from utils.logger import init_logger, log
 from utils.random import init_random_seeds
 
 from envs import DMControlWrapper, ActionRepeatWrapper, dm_suite_benchmark
-from dreamer.Dreamer import Dreamer
+from Dreamer import Dreamer
 
 device=torch.device("cpu")
 
@@ -85,18 +85,15 @@ if __name__ == "__main__":
         action_repeat=ACTION_REPEAT
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
-    pretrained = torch.load("logdir/dreamer3.torch")
+    pretrained = torch.load("logdir/dreamer.torch")
 
-    agent_dict = agent.agent.state_dict()
-    encoder_dict = agent.world_model.encoder.state_dict()
-    decoder_dict = agent.world_model.decoder.state_dict()
+    #  encoder_dict = agent.world_model.encoder.state_dict()
+    #  decoder_dict = agent.world_model.decoder.state_dict()
+    #  encoder_dict.update({k: pretrained["world_model.encoder." + k] for k in encoder_dict.keys()})
+    #  decoder_dict.update({k: pretrained["world_model.decoder." + k] for k in decoder_dict.keys()})
+    #  agent.world_model.encoder.load_state_dict(encoder_dict)
+    #  agent.world_model.decoder.load_state_dict(decoder_dict)
 
-    encoder_dict.update({k: pretrained["world_model.encoder." + k] for k in encoder_dict.keys()})
-    decoder_dict.update({k: pretrained["world_model.decoder." + k] for k in decoder_dict.keys()})
-    agent_dict.update({k: pretrained["agent." + k] for k in agent_dict.keys()})
-    agent.world_model.encoder.load_state_dict(encoder_dict)
-    agent.world_model.decoder.load_state_dict(decoder_dict)
-    agent.agent.load_state_dict(agent_dict)
 
     agent.eval()
 
