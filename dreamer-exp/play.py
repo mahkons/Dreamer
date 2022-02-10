@@ -46,7 +46,7 @@ def play_both(env, agent, horizon):
     
     images = play(agent, horizon, init_state)
 
-    images_obs = torch.stack(obs[10:10+horizon+1]) *0.5 + 0.5
+    images_obs = torch.stack(obs[10:10+horizon+1]) * 0.5 + 0.5
     return torch.cat([images, images_obs], dim=0)
 
 
@@ -61,8 +61,8 @@ def play(agent, horizon, init_state=None):
         condition = torch.cat([state.squeeze(1), action], dim=-1)
 
         embeds = agent.world_model.flow_model.sample(condition)
-        images = agent.world_model.decoder(embeds) * 0.5 + 0.5
-    return images
+        images = agent.world_model.decoder(embeds)
+    return images * 0.5 + 0.5
 
 
 def test_decoder(env, agent):
@@ -70,9 +70,8 @@ def test_decoder(env, agent):
         _, obs = sample_episode(env, agent)
         obs = torch.stack(obs[::5]).float() # only every 5th
         embed = agent.world_model.encoder(obs)
-        rec = agent.world_model.decoder(embed) * 0.5 + 0.5
-        print(rec[0, :, :5, :5])
-    return rec
+        rec = agent.world_model.decoder(embed)
+    return rec*0.5 + 0.5, obs*0.5 + 0.5
 
 
 if __name__ == "__main__":
@@ -95,12 +94,10 @@ if __name__ == "__main__":
     #  decoder_dict.update({k: pretrained["world_model.decoder." + k] for k in decoder_dict.keys()})
     #  agent.world_model.encoder.load_state_dict(encoder_dict)
     #  agent.world_model.decoder.load_state_dict(decoder_dict)
-
-
     agent.eval()
 
 
-    images = test_decoder(env, agent)[:10]
-    grid_image = torchvision.utils.make_grid(images, nrow=5)
+    images, obs = test_decoder(env, agent)
+    grid_image = torchvision.utils.make_grid(torch.cat([images[:5], obs[:5]]), nrow=5)
     plt.imshow(grid_image.permute(1, 2, 0))
     plt.show()
