@@ -171,6 +171,5 @@ class ResnetEncoder(nn.Module):
 
         x = self.model.avgpool(x)
         x = torch.flatten(x, 1)
-
-        x = F.avg_pool1d(x, 2, 2) # 512 -> 256
+        x = F.avg_pool1d(x[:, None, :], 2, 2).squeeze(1) # 512 -> 256
         return x
