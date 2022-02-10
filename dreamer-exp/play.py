@@ -11,7 +11,7 @@ from utils.logger import init_logger, log
 from utils.random import init_random_seeds
 
 from envs import DMControlWrapper, ActionRepeatWrapper, dm_suite_benchmark
-from Dreamer import Dreamer
+from dreamer.Dreamer import Dreamer
 
 device=torch.device("cpu")
 
@@ -65,6 +65,14 @@ def play(agent, horizon, init_state=None):
     return images
 
 
+def test_decoder(env, agent):
+    with torch.no_grad():
+        _, obs = sample_episode(env, agent)
+        obs = torch.stack(obs[::5]).float() # only every 5th
+        embed = agent.world_model.encoder(obs)
+        rec = agent.world_model.decoder(embed) + 0.5
+    return rec
+
 
 if __name__ == "__main__":
     RANDOM_SEED = 17923957
@@ -77,11 +85,23 @@ if __name__ == "__main__":
         action_repeat=ACTION_REPEAT
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
-    agent.load_state_dict(torch.load("logdir/maf5.0/dreamer.torch"))
+    pretrained = torch.load("logdir/dreamer3.torch")
+
+    agent_dict = agent.agent.state_dict()
+    encoder_dict = agent.world_model.encoder.state_dict()
+    decoder_dict = agent.world_model.decoder.state_dict()
+
+    encoder_dict.update({k: pretrained["world_model.encoder." + k] for k in encoder_dict.keys()})
+    decoder_dict.update({k: pretrained["world_model.decoder." + k] for k in decoder_dict.keys()})
+    agent_dict.update({k: pretrained["agent." + k] for k in agent_dict.keys()})
+    agent.world_model.encoder.load_state_dict(encoder_dict)
+    agent.world_model.decoder.load_state_dict(decoder_dict)
+    agent.agent.load_state_dict(agent_dict)
+
+    agent.eval()
 
 
-    HORIZON = 44
-    images = play_both(env, agent, HORIZON)[::5]
-    grid_image = torchvision.utils.make_grid(images, nrow=(HORIZON+1)//5)
+    images = test_decoder(env, agent)[:10]
+    grid_image = torchvision.utils.make_grid(images, nrow=5)
     plt.imshow(grid_image.permute(1, 2, 0))
     plt.show()
