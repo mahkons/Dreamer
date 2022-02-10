@@ -154,7 +154,7 @@ class ResnetEncoder(nn.Module):
         return self.forward_impl(x)
 
     def forward_impl(self, x):
-        x = self.normalize(x)
+        x = self.normalize((x + 1.) / 2.)
         # from https://pytorch.org/vision/stable/_modules/torchvision/models/resnet.html#resnet18 
 
         x = self.model.conv1(x)
