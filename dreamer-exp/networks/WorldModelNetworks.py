@@ -142,7 +142,6 @@ class ResnetEncoder(nn.Module):
         super(ResnetEncoder, self).__init__()
         self.model = torchvision.models.resnet18(pretrained=False)
         self.model.load_state_dict(torch.load("logdir/resnet18.pt")) # should be saved here =(
-        self.model.eval()
         self.out_dim = 256
         self.obs_dim = (3, 64, 64)
 
@@ -155,7 +154,6 @@ class ResnetEncoder(nn.Module):
         return self.forward_impl(x)
 
     def forward_impl(self, x):
-        x = torchvision.transforms.functional.resize(x, 256, antialias=True)
         x = self.normalize(x)
         # from https://pytorch.org/vision/stable/_modules/torchvision/models/resnet.html#resnet18 
 
