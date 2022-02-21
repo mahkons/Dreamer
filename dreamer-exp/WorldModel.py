@@ -60,7 +60,7 @@ class WorldModel(nn.Module):
     def test(self, obs, action, reward, discount):
         with torch.no_grad():
             embed = self.encoder(embed)
-            l2_reg_loss, rec_loss = self.calc_encoder_loss(embed)
+            l2_reg_loss, rec_loss = self.calc_encoder_loss(obs, embed)
             hidden, flow_list, reward_loss, discount_loss, flow_loss = \
                     self.calc_flow_model_loss(embed, action, reward, discount)
 
@@ -72,7 +72,7 @@ class WorldModel(nn.Module):
                 l2_reg_loss.item()
             ])
 
-    def calc_encoder_loss(self, embed):
+    def calc_encoder_loss(self, obs, embed):
         l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
         simple_reconstruction = self.decoder(embed)
         rec_loss = ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
@@ -85,7 +85,7 @@ class WorldModel(nn.Module):
 
         embed = self.encoder(obs)
 
-        l2_reg_loss, rec_loss = self.calc_encoder_loss(embed)
+        l2_reg_loss, rec_loss = self.calc_encoder_loss(obs, embed)
 
         self.ed_optimizer.zero_grad()
         (rec_loss + l2_reg_loss).backward()
