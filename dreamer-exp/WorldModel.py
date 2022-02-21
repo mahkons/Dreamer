@@ -96,6 +96,7 @@ class WorldModel(nn.Module):
         return embed, rec_loss, l2_reg_loss
 
     def calc_flow_model_loss(self, embed, action, reward, discount):
+        batch_size = action.shape[1]
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
         hidden, flow_list, jac_list = self.observe(embed, action, init_hidden)
@@ -115,7 +116,6 @@ class WorldModel(nn.Module):
         return hidden, flow_list, reward_loss, discount_loss, flow_loss
 
     def optimize(self, obs, action, reward, discount):
-        batch_size = action.shape[1]
         embed, rec_loss, l2_reg_loss = self.optimize_encoder(obs)
 
         hidden, flow_list, reward_loss, discount_loss, flow_loss = \
