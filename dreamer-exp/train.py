@@ -51,22 +51,22 @@ def train(env, agent):
 
         memory.push(episode)
 
+        if episode_count % 10 == 1:
+            test_episode = sample_episode(env, agent)
+            test_memory.push(test_episode)
+
         if memory.num_steps() >= INIT_STEPS:
             for i in range(TRAIN_ITERS_PER_EPISODE):
                 batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
                 agent.optimize(batch_seq)
 
+            for _ in range(TEST_ITERS_PER_EPISODE):
+                batch_seq = test_memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
+                agent.test(batch_seq)
 
-        if episode_count % 10 == 0:
-            test_episode = sample_episode(env, agent)
-            test_memory.push(test_episode)
-
-        for _ in range(TEST_ITERS_PER_EPISODE):
-            batch_seq = test_memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
-            agent.test(batch_seq)
 
         log().save_logs()
-        if episode_count % 10 == 0:
+        if episode_count % 10 == 1:
             torch.save(agent.state_dict(), os.path.join(log().get_log_path(), "dreamer.torch"))
 
 

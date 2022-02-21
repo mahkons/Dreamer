@@ -59,7 +59,7 @@ class WorldModel(nn.Module):
 
     def test(self, obs, action, reward, discount):
         with torch.no_grad():
-            embed = self.encoder(embed)
+            embed = self.encoder(obs)
             l2_reg_loss, rec_loss = self.calc_encoder_loss(obs, embed)
             hidden, flow_list, reward_loss, discount_loss, flow_loss = \
                     self.calc_flow_model_loss(embed, action, reward, discount)
