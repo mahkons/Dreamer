@@ -54,8 +54,29 @@ class WorldModel(nn.Module):
         self.ed_optimizer = torch.optim.Adam(self.ed_parameters, lr=ED_MODEL_LR)
 
         log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
+        log().add_plot("test_model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss", "l2_reg_loss"])
         self.data_initialized = False
 
+    def test(self, obs, action, reward, discount):
+        with torch.no_grad():
+            embed = self.encoder(embed)
+            l2_reg_loss, rec_loss = self.calc_encoder_loss(embed)
+            hidden, flow_list, reward_loss, discount_loss, flow_loss = \
+                    self.calc_flow_model_loss(embed, action, reward, discount)
+
+            log().add_plot_point("test_model_loss", [
+                rec_loss.item(),
+                flow_loss.item(),
+                reward_loss.item(),
+                discount_loss.item(),
+                l2_reg_loss.item()
+            ])
+
+    def calc_encoder_loss(self, embed):
+        l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
+        simple_reconstruction = self.decoder(embed)
+        rec_loss = ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
+        return l2_reg_loss, rec_loss
 
     def optimize_encoder(self, obs):
         if WITH_RESNET_ENCODER:
@@ -64,9 +85,7 @@ class WorldModel(nn.Module):
 
         embed = self.encoder(obs)
 
-        l2_reg_loss = REC_L2_REG * (embed ** 2).sum(dim=2).mean(dim=(0, 1))
-        simple_reconstruction = self.decoder(embed)
-        rec_loss = ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
+        l2_reg_loss, rec_loss = self.calc_encoder_loss(embed)
 
         self.ed_optimizer.zero_grad()
         (rec_loss + l2_reg_loss).backward()
@@ -76,10 +95,7 @@ class WorldModel(nn.Module):
 
         return embed, rec_loss, l2_reg_loss
 
-    def optimize(self, obs, action, reward, discount):
-        batch_size = action.shape[1]
-        embed, rec_loss, l2_reg_loss = self.optimize_encoder(obs)
-
+    def calc_flow_model_loss(self, embed, action, reward, discount):
         init_hidden, prev_action = self.initial_state(batch_size)
         action = torch.cat([prev_action.unsqueeze(0), action], dim=0)
         hidden, flow_list, jac_list = self.observe(embed, action, init_hidden)
@@ -96,6 +112,14 @@ class WorldModel(nn.Module):
             discount_loss = F.binary_cross_entropy_with_logits(predicted_discount_logit, discount * GAMMA)
 
         flow_loss = -(prior.log_prob(flow_list).sum(dim=2) + jac_list).mean()
+        return hidden, flow_list, reward_loss, discount_loss, flow_loss
+
+    def optimize(self, obs, action, reward, discount):
+        batch_size = action.shape[1]
+        embed, rec_loss, l2_reg_loss = self.optimize_encoder(obs)
+
+        hidden, flow_list, reward_loss, discount_loss, flow_loss = \
+                self.calc_flow_model_loss(embed, action, reward, discount)
 
         self.model_optimizer.zero_grad()
         (reward_loss + discount_loss + flow_loss * FLOW_LOSS_COEFF).backward()

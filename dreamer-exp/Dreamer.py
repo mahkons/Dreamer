@@ -30,11 +30,16 @@ class Dreamer(nn.Module):
             return action.clip_(-1, 1).cpu().numpy(), next_hidden
 
     def optimize(self, batch_seq):
+        self.train()
         obs, action, reward, discount = batch_seq
 
         hidden = self.world_model.optimize(obs, action, reward, discount)
         hidden = hidden.detach_().view(-1, FLOW_GRU_DIM + EMBED_DIM)
         self.agent.optimize(self.world_model, hidden)
 
+    def test(self, batch_seq):
+        self.eval()
+        obs, action, reward, discount = batch_seq
+        self.world_model.test(obs, action, reward, discount)
 
 

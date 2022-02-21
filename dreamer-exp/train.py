@@ -17,7 +17,7 @@ from ReplayBuffer import Episode, ReplayBuffer
 
 from params import RANDOM_SEED, INIT_STEPS, MEMORY_SIZE, TOTAL_STEPS, \
         SEQ_LEN, BATCH_SIZE, FROM_PIXELS, TRAIN_ITERS_PER_EPISODE, \
-        ACTION_REPEAT
+        ACTION_REPEAT, TEST_ITERS_PER_EPISODE
 
 device = torch.device("cuda")
 
@@ -40,23 +40,34 @@ def train(env, agent):
     log().add_plot("eval_reward", ["episode", "steps", "reward"])
 
     memory = ReplayBuffer(MEMORY_SIZE)
+    test_memory = ReplayBuffer(MEMORY_SIZE // 10)
 
     step_count, episode_count = 0, 0
     while step_count < TOTAL_STEPS:
         episode = sample_episode(env, agent)
-        memory.push(episode)
-        step_count += len(episode) * ACTION_REPEAT
         episode_count += 1
+        step_count += len(episode) * ACTION_REPEAT
         log().add_plot_point("eval_reward", [episode_count, step_count, episode.rewards.sum().item()])
+
+        memory.push(episode)
 
         if memory.num_steps() >= INIT_STEPS:
             for i in range(TRAIN_ITERS_PER_EPISODE):
                 batch_seq = memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
-                agent.train()
                 agent.optimize(batch_seq)
 
-        log().save_logs() # TODO logger context?
-        torch.save(agent.state_dict(), os.path.join(log().get_log_path(), "dreamer.torch"))
+
+        if episode_count % 10 == 0:
+            test_episode = sample_episode(env, agent)
+            test_memory.push(test_episode)
+
+        for _ in range(TEST_ITERS_PER_EPISODE):
+            batch_seq = test_memory.sample_seq(SEQ_LEN, BATCH_SIZE, device)
+            agent.test(batch_seq)
+
+        log().save_logs()
+        if episode_count % 10 == 0:
+            torch.save(agent.state_dict(), os.path.join(log().get_log_path(), "dreamer.torch"))
 
 
 
