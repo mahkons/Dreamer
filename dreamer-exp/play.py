@@ -76,7 +76,7 @@ def test_decoder(env, agent):
 
 
 if __name__ == "__main__":
-    RANDOM_SEED = 17923957
+    RANDOM_SEED = 179 * 239 * 57
     ACTION_REPEAT = 2
     init_logger("logdir", "tmp", "play.py")
     init_random_seeds(RANDOM_SEED, cuda_determenistic=False)
@@ -86,7 +86,7 @@ if __name__ == "__main__":
         action_repeat=ACTION_REPEAT
     )
     agent = Dreamer(env.state_dim, env.action_dim, device)
-    pretrained = torch.load("logdir/dreamer_exp3.5.torch")
+    pretrained = torch.load("logdir/dreamer.torch")
     agent.load_state_dict(pretrained)
 
     #  encoder_dict = agent.world_model.encoder.state_dict()
