@@ -151,8 +151,8 @@ class WorldModel(nn.Module):
 
         if WITH_CONTRASTIVE:
             embed = embed / torch.linalg.norm(embed, dim=-1, keepdim=True)
-            if self.training:
-                embed = embed * torch.rand(emb.shape[1], emb.shape[2], 1) * 0.2 + 0.9 # random in [0.9, 1.1); maybe better uniform noise?
+            if self.training: # random in [0.9, 1.1); maybe better uniform noise?
+                embed = embed * (torch.rand(embed.shape[1], embed.shape[2], 1) * 0.2 + 0.9) 
         
         return embed
 
