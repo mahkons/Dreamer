@@ -5,14 +5,10 @@ from .Flow import ConditionalFlow
 from .MaskedLayers import MaskedLinear
 
 class MADE(ConditionalFlow):
-    def __init__(self, dim, condition_dim, hidden_dim, ind):
+    def __init__(self, dim, condition_dim, hidden_dim):
         super(MADE, self).__init__()
-        self.ind = ind
 
         assert(hidden_dim >= dim > 2)
-
-        if self.ind != 0:
-            condition_dim = 0
 
         order_input = torch.arange(dim)
         order_hidden = torch.arange(hidden_dim) % (dim - 1)
@@ -31,9 +27,6 @@ class MADE(ConditionalFlow):
 
     def forward_flow(self, x, condition):
         inputs = torch.cat([x, condition], dim=1)
-        if self.ind != 0:
-            inputs = x
-
         log_s, t = self.model(inputs).chunk(2, dim=1)
         log_s = torch.tanh(log_s)
         return x * torch.exp(log_s) + t, log_s.sum(dim=1)
