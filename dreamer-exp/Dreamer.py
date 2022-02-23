@@ -22,9 +22,7 @@ class Dreamer(nn.Module):
         with torch.no_grad():
             obs = torch.as_tensor(obs, dtype=torch.float, device=self.device).unsqueeze(0)
             prev_action = torch.as_tensor(prev_action, dtype=torch.float, device=self.device).unsqueeze(0)
-            embed = self.world_model.target_encoder(obs)
-            if WITH_CONTRASTIVE:
-                embed = embed / embed.norm()
+            embed = self.world_model.get_embed(obs)
             next_hidden, embed_flow, _ = self.world_model.obs_step(embed, prev_action, hidden)
             action = self.agent.act(torch.cat([hidden, embed_flow], dim=-1), isTrain=False).squeeze(0)
             
