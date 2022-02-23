@@ -64,11 +64,12 @@ class MyFlatten(nn.Module):
 
 
 class ObservationEncoder(nn.Module):
-    def __init__(self, obs_dim, out_dim, from_pixels):
+    def __init__(self, obs_dim, out_dim, from_pixels, with_tanh):
         super(ObservationEncoder, self).__init__()
         self.obs_dim = obs_dim
         self.out_dim = out_dim
         self.from_pixels = from_pixels
+        self.with_tanh = with_tanh
         
         self.model = self._build_model()
 
@@ -82,7 +83,7 @@ class ObservationEncoder(nn.Module):
         if not self.from_pixels:
             return MLP(self.obs_dim, self.out_dim, [300, 300], nn.GELU)
 
-        return nn.Sequential(
+        modules = [
             nn.Conv2d(3, 32, kernel_size=4, stride=2),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
@@ -93,7 +94,11 @@ class ObservationEncoder(nn.Module):
             MyFlatten(3),
             nn.ReLU(),
             nn.Linear(1024, self.out_dim)
-        )
+        ]
+        if self.with_tanh:
+            modules.append(nn.Tanh())
+
+        return nn.Sequential(*modules)
 
 
 class MyUnflattenModule(nn.Module):
