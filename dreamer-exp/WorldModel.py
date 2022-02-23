@@ -27,7 +27,7 @@ class WorldModel(nn.Module):
 
         self.reward_model = RewardNetwork(FLOW_GRU_DIM).to(device)
         self.discount_model = DiscountNetwork.create(FLOW_GRU_DIM, PREDICT_DONE, GAMMA).to(device)
-        self.encoder = ObservationEncoder(self.state_dim, EMBED_DIM, FROM_PIXELS, True).to(device)
+        self.encoder = ObservationEncoder(self.state_dim, EMBED_DIM, FROM_PIXELS, False).to(device)
         self.decoder = ObservationDecoder(EMBED_DIM, self.state_dim, FROM_PIXELS).to(device)
 
         if WITH_TARGET_ENCODER:
