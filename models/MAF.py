@@ -17,9 +17,10 @@ class MAF(nn.Module):
         self.device = device
 
         self.model = SequentialConditionalFlow(sum(
-            [[MADE(flow_dim, condition_dim, hidden_dim), RunningBatchNorm1d(flow_dim), ActNorm(flow_dim), Shuffle(torch.randperm(flow_dim))] \
-                for i in range(num_blocks - 1)] \
-            + [[MADE(flow_dim, condition_dim, hidden_dim)]], 
+            [[MADE(flow_dim, condition_dim, hidden_dim, ind == 0),
+                RunningBatchNorm1d(flow_dim), ActNorm(flow_dim), Shuffle(torch.randperm(flow_dim))] \
+                for ind in range(num_blocks - 1)] \
+            + [[MADE(flow_dim, condition_dim, hidden_dim, False)]], 
         []))
         self.model.to(device)
         self.prior = torch.distributions.Normal(torch.tensor(0., device=device),
