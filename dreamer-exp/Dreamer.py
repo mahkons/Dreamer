@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from WorldModel import WorldModel
 from ActorCritic import ActorCritic
-from params import EMBED_DIM, FLOW_GRU_DIM
+from params import EMBED_DIM, FLOW_GRU_DIM, WITH_CONTRASTIVE
 
 
 class Dreamer(nn.Module):
@@ -23,6 +23,8 @@ class Dreamer(nn.Module):
             obs = torch.as_tensor(obs, dtype=torch.float, device=self.device).unsqueeze(0)
             prev_action = torch.as_tensor(prev_action, dtype=torch.float, device=self.device).unsqueeze(0)
             embed = self.world_model.target_encoder(obs)
+            if WITH_CONTRASTIVE:
+                embed = embed / embed.norm()
             next_hidden, embed_flow, _ = self.world_model.obs_step(embed, prev_action, hidden)
             action = self.agent.act(torch.cat([hidden, embed_flow], dim=-1), isTrain=False).squeeze(0)
             

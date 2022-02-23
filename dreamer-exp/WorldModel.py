@@ -13,7 +13,7 @@ from params import STOCH_DIM, DETER_DIM, EMBED_DIM, MAX_KL, \
     MODEL_LR, GAMMA, MAX_GRAD_NORM, FROM_PIXELS, PREDICT_DONE, \
     FLOW_GRU_DIM, FLOW_HIDDEN_DIM, FLOW_NUM_BLOCKS, MODEL_WEIGHT_DECAY, \
     FLOW_LOSS_IN_GRU_MULTIPLIER, ED_MODEL_LR, WITH_PRIOR_MODEL, FLOW_LOSS_COEFF, WITH_RESNET_ENCODER, \
-    WITH_TARGET_ENCODER, ENCODER_TAU
+    WITH_TARGET_ENCODER, ENCODER_TAU, WITH_CONTRASTIVE
 
 
 class WorldModel(nn.Module):
@@ -64,11 +64,14 @@ class WorldModel(nn.Module):
 
         log().add_plot("model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss"])
         log().add_plot("test_model_loss", ["reconstruction_loss", "flow_loss", "reward_loss", "discount_loss"])
+        log().add_plot("maf_first_bn_stats", ["running_mean_0", "running_var_0"])
         self.data_initialized = False
 
     def test(self, obs, action, reward, discount):
         with torch.no_grad():
             embed = self.encoder(obs)
+            if WITH_CONTRASTIVE:
+                embed /= embed.norm(dim=2, keepdim=True)
             rec_loss = self.calc_encoder_loss(obs, embed)
             hidden, flow_list, reward_loss, discount_loss, flow_loss = \
                     self.calc_flow_model_loss(embed, action, reward, discount)
@@ -81,6 +84,10 @@ class WorldModel(nn.Module):
             ])
 
     def calc_encoder_loss(self, obs, embed):
+        if WITH_CONTRASTIVE:
+            emb = embed.reshape(-1, EMBED_DIM)
+            loss = (emb @ emb.T).mean()
+            return loss
         simple_reconstruction = self.decoder(embed)
         rec_loss = ((obs - simple_reconstruction) ** 2).sum(dim=(2, 3, 4)).mean(dim=(0, 1))
         return rec_loss
@@ -91,6 +98,8 @@ class WorldModel(nn.Module):
                 return self.encoder(obs), torch.zeros(1), torch.zeros(1)
 
         embed = self.encoder(obs)
+        if WITH_CONTRASTIVE:
+            embed = embed / embed.norm(dim=2, keepdim=True)
 
         rec_loss = self.calc_encoder_loss(obs, embed)
 
@@ -144,6 +153,11 @@ class WorldModel(nn.Module):
             flow_loss.item(),
             reward_loss.item(),
             discount_loss.item()
+        ])
+
+        log().add_plot_point("maf_first_bn_stats", [
+            self.flow_model.model.flow_modules[1].m[0].item(), # a bit of a hack
+            self.flow_model.model.flow_modules[1].s[0].item()
         ])
 
         return torch.cat([hidden[:-1], flow_list], dim=-1)
